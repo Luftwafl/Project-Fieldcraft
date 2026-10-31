@@ -1,0 +1,17 @@
+Project Fieldcraft - put the server on the internet (so accounts work anywhere)
+
+You need: a host that runs Docker containers and has a persistent disk
+(Render, Railway, Fly.io, or any VPS). The steps are the same on each.
+
+1. Upload this whole package (or push it to a repository the host can read).
+2. Create a web service from the Dockerfile in the top folder.
+3. Set the environment variable:  DATA_DIR = /data
+   and attach a persistent disk / volume mounted at /data.
+   Without this disk, accounts are lost every time the server restarts.
+4. The host sets PORT for you. The server reads it automatically.
+5. Open the https:// address the host gives you. The game loads there.
+   Everyone uses that same address: create an account once, then log in on any device.
+6. Admin names: edit server/config.json ("admins") before you deploy.
+
+Logins are sent over HTTPS when the host provides it. Do not reuse an important password.
+Accounts are stored in DATA_DIR/accounts.json. Back that file up.
