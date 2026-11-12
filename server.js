@@ -1,6 +1,6 @@
 /* Project Fieldcraft server.
-   HTTP:  GET /              the game page (game.html next to this file)
-          GET /servers       the list of servers (rooms) with player counts
+   HTTP:  GET /             the game page (game.html next to this file)
+          GET /servers      the list of servers (rooms) with player counts
           POST /account/register, /account/login, /account/logout
           GET /account, PUT /account/wallet   (Authorization: Bearer <token>)
    WS:    one connection per player; the join must carry the token from a login. JSON messages (see net.js in the game).
@@ -11,13 +11,34 @@ const http=require('http'),fs=require('fs'),path=require('path');
 const {WebSocketServer}=require('ws');
 const {CQ,CQ_POINTS,cqNew,cqStep}=require('../conquest.js');
 const accounts=require('./accounts.js');
-const cfg=JSON.parse(fs.readFileSync(path.join(__dirname,'config.json'),'utf8'));
+
+// Fallback configuration if config.json is missing
+let cfg;
+const configPath = path.join(__dirname,'config.json');
+try {
+  cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+} catch (e) {
+  console.log('config.json not found. Creating a default configuration...');
+  cfg = {
+    port: 8080,
+    admins: [],
+    servers: [
+      { name: "Fieldcraft Central", max: 16 }
+    ]
+  };
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+  } catch (err) {
+    console.log('Could not auto-write default config.json, using defaults in memory.');
+  }
+}
+
 const PORT=+process.env.PORT||cfg.port||8080;
-const ADMINS=new Set(cfg.admins.map(s=>String(s).trim().toLowerCase()));
+const ADMINS=new Set((cfg.admins||[]).map(s=>String(s).trim().toLowerCase()));
 const TEAMS=['nato','wp'],CLASSES=['rifleman','assault','support'];
 const RESTART_DELAY=15;
 let nextId=1;
-const rooms=cfg.servers.map((s,i)=>({id:'s'+(i+1),name:s.name,max:s.max||16,players:new Map(),cq:cqNew(CQ_POINTS),stats:{},ended:0,events:[],captures:{nato:0,wp:0}}));
+const rooms=(cfg.servers||[{name:'Default Room',max:16}]).map((s,i)=>({id:'s'+(i+1),name:s.name,max:s.max||16,players:new Map(),cq:cqNew(CQ_POINTS),stats:{},ended:0,events:[],captures:{nato:0,wp:0}}));
 const roomById=id=>rooms.find(r=>r.id===id);
 function send(ws,msg){if(ws&&ws.readyState===1)ws.send(JSON.stringify(msg))}
 function roomSend(room,msg){for(const p of room.players.values())send(p.ws,msg)}
@@ -123,7 +144,7 @@ setInterval(()=>{
   if(!room.cq.over){const ev=cqStep(room.cq,units,dt);
    for(const e of ev){if(e.type==='capture'){room.captures[e.team]++;roomSend(room,{type:'cqevent',kind:'capture',point:e.point,name:e.name,team:e.team})}
     if(e.type==='win'){room.ended=now;roomSend(room,{type:'matchend',winner:e.team,reason:e.reason,
-      players:[...room.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,kills:p.kills,deaths:p.deaths})),captures:room.captures,restartIn:RESTART_DELAY})}}}
+     players:[...room.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,kills:p.kills,deaths:p.deaths})),captures:room.captures,restartIn:RESTART_DELAY})}}}
   if(room.ended&&now-room.ended>RESTART_DELAY*1000)restartMatch(room,'New match');
   const world={type:'world',t:now,cq:room.cq,players:[...room.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,cls:p.cls,admin:p.admin,down:!!p.down,
    x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,stance:p.stance,alive:p.alive,hp:p.hp,kills:p.kills,deaths:p.deaths}))};
