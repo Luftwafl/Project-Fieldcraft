@@ -9,7 +9,7 @@
    It does NOT check hits or movement, so it is not cheat-proof. */
 const http=require('http'),fs=require('fs'),path=require('path');
 const {WebSocketServer}=require('ws');
-const {CQ,CQ_POINTS,cqNew,cqStep}=require('../conquest.js');
+const {CQ,CQ_POINTS,cqNew,cqStep}=require('./conquest.js');
 const accounts=require('./accounts.js');
 
 // Fallback configuration if config.json is missing
