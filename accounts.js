@@ -10,7 +10,11 @@ const NAME_RE=/^[A-Za-z0-9_]{3,16}$/;
 let db={accounts:{}};
 try{const j=JSON.parse(fs.readFileSync(FILE,'utf8'));if(j&&j.accounts&&typeof j.accounts==='object')db=j}catch(e){}
 let saveT=null;
-function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{const tmp=FILE+'.tmp';fs.writeFileSync(tmp,JSON.stringify(db));fs.renameSync(tmp,FILE)}catch(e){console.log('Could not save accounts: '+e.message)}},300)}
+/* write the accounts file now (also called on shutdown, so the last save is not lost) */
+function flush(){clearTimeout(saveT);saveT=null;try{const tmp=FILE+'.tmp';fs.writeFileSync(tmp,JSON.stringify(db));fs.renameSync(tmp,FILE);return true}catch(e){console.log('Could not save accounts: '+e.message);return false}}
+function save(){clearTimeout(saveT);saveT=setTimeout(flush,300)}
+if(!process.env.DATA_DIR)console.log('WARNING: DATA_DIR is not set. Accounts are kept in '+FILE+' and are lost when a host without a persistent disk restarts.');
+else console.log('Accounts are kept in '+FILE);
 const lower=s=>String(s).toLowerCase();
 const num=(v,d=0)=>Number.isFinite(+v)&&+v>=0?+v:d;
 /* per-gun optics: each gun (weapon id) has its own owned optics and equipped optic */
@@ -46,4 +50,4 @@ function byToken(token){if(!token||typeof token!=='string'||token.length!==64)re
  for(const acc of Object.values(db.accounts))if(acc.token&&acc.token===token)return acc;return null}
 function putWallet(token,wallet){const acc=byToken(token);if(!acc)return false;acc.wallet=cleanWallet(wallet);save();return true}
 function logout(token){const acc=byToken(token);if(acc){acc.token=null;save()}}
-module.exports={register,login,byToken,putWallet,logout,cleanWallet};
+module.exports={register,login,byToken,putWallet,logout,cleanWallet,flush};

@@ -153,6 +153,8 @@ setInterval(()=>{
 },100);
 setInterval(()=>{for(const room of rooms)for(const p of room.players.values()){if(!p.ws.isAlive){p.ws.terminate();continue}p.ws.isAlive=false;p.ws.ping()}},15000);
 
+/* save pending account changes before the process stops (host restarts, deploys, Ctrl+C) */
+for(const sig of ['SIGTERM','SIGINT'])process.on(sig,()=>{accounts.flush();process.exit(0)});
 httpSrv.listen(PORT,()=>{
  console.log('Project Fieldcraft server listening on port '+PORT);
  console.log('Servers: '+rooms.map(r=>r.name).join(' | '));
