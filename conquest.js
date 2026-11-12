@@ -1,8 +1,8 @@
 /* Conquest (capture the area) rules. Pure data and functions: used by the browser game (single player)
    and by the multiplayer server, so both follow the same rules. */
 const CQ={R:22,CAP_T:12,TICKETS:300,DRAIN:0.5,SWEEP_T:20,TICK:0.25};
-/* the five capture points are the village centres of the main map (fixed, so the server and every client agree) */
-const CQ_POINTS=[{name:'A',x:-176,z:112},{name:'B',x:64,z:208},{name:'C',x:240,z:48},{name:'D',x:112,z:-344},{name:'E',x:-240,z:-192}];
+/* the three capture points of the urban map (fixed, so the server and every client agree): A residential, B downtown centre, C industrial. Each is 250 m from both bases. */
+const CQ_POINTS=[{name:'A',x:-90,z:90},{name:'B',x:0,z:0},{name:'C',x:90,z:-90}];
 /* points: [{name,x,z}]. units: [{team:'nato'|'wp',x,z,alive}] */
 function cqNew(points){return{points:points.map((p,i)=>({id:i,name:p.name,x:p.x,z:p.z,owner:null,capTeam:null,prog:0})),
  tickets:{nato:CQ.TICKETS,wp:CQ.TICKETS},sweepT:0,over:null,acc:0}}

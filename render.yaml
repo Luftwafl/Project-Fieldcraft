@@ -1,0 +1,17 @@
+# Render Blueprint: keeps the Fieldcraft server running 24/7 with accounts on a persistent disk.
+# Needs a paid instance type: free web services sleep when idle and free plans have no persistent disk.
+services:
+  - type: web
+    name: project-fieldcraft
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # always on; use "standard" for more memory when the player count grows
+    healthCheckPath: /servers
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: fieldcraft-data
+      mountPath: /data
+      sizeGB: 1
