@@ -1,0 +1,24 @@
+Project Fieldcraft - BETA 0.4.5 - test report
+
+Changes in 0.4.5 (damage system)
+- Hits land on a place: head, chest, arm or leg. A blast is spread.
+- Helmet stops the first 3 pistol rounds to the head. Rifle rounds go through; a rifle head shot kills.
+- Vest stops the first 4 rifle rounds to the chest. A chest round that gets through is a chest wound (20 blood, bleeds 1.5/s).
+- Arm and leg wounds bleed (0.6/s each, 8 blood per rifle hit, 4 per pistol hit).
+- Blood is 100. At 50 the player is downed for 60 s. Bleeding continues while downed; a hit while downed is fatal; GIVE UP ends it.
+- Revive: a teammate holds MED next to a downed teammate for 5 s and uses one of their kits. Revived at 50 blood with wounds still open. Multiplayer only.
+- Medkits: 0 to 6 chosen on the role menu (default 2). MED treats the most severe wound, one kit per wound.
+- Downed screen (countdown ring, revive ring, nearest teammate, GIVE UP) and death screen (wounds figure, hits, armour stops, cause, killer).
+- Server relays hit location and weapon, the downed flag and revive progress. Version 0.4.5.
+
+Results (headless Chromium, software GL)
+- dmg45: helmet 3 stops then the 4th pistol head shot kills; rifle head kills; vest stops 4 then wounds; pistol chest not stopped by vest; leg wound leaves 92 blood; downed at 47, 60 s timer, bled out; kits take the most severe wound first; no kits and no wounds handled; from-behind flag; death screen counts hits.
+- stage18 ALL PASS (death screen dismissed with CONTINUE first); npc18 errors none; npc18b zones head 4, vest 10; uni18 no errors; ai17_test 10/10.
+- server/server.js syntax checked. Revive between two live clients not run.
+
+Open items
+- Single-player has no reviver: a downed player bleeds out unless the rules are extended to AI squadmates.
+- Enemy NPC soldiers fire rifles only, so helmets matter against pistols only in PvP.
+- NPC soldiers do not use the helmet or vest rules; their damage model is unchanged.
+- Touch layout of the MED button (bottom right) not checked on a phone.
+- Performance on a real GPU and phone not checked.

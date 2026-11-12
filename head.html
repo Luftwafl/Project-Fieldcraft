@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Project Fieldcraft</title>
+<style>
+:root{--ink:#d6d8c4;--mut:#8f927a;--acc:#a9b278;--ln:rgba(214,216,196,.26);--pn:rgba(14,16,10,.8)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0c0e09;color:var(--ink);font:13px/1.35 Bahnschrift,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;touch-action:pan-y;overscroll-behavior:none}
+body>canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit}
+.hide{display:none!important}
+#load,#err,#rot{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:#0c0e09;letter-spacing:.2em;font-size:13px}
+#err{background:#241210;color:#ffb8a8;font-size:14px;letter-spacing:0;white-space:pre-wrap}
+#rot{display:none;z-index:25}
+@media(orientation:portrait){body.touch #rot{display:flex}}
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3;text-shadow:0 1px 2px rgba(0,0,0,.75)}
+body:not([data-s=play]):not([data-s=pause]) #hud,body[data-v=faction] #hud,body[data-v=class] #hud{display:none}
+#mm{position:absolute;top:10px;right:10px;width:128px;height:128px;border-radius:50%;border:1px solid rgba(226,224,190,.4);background:#14180f;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#cmp{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:min(400px,46vw);height:34px}
+#cmpc{width:100%;height:100%;display:block;-webkit-mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent)}
+#cmpk{position:absolute;left:50%;top:-3px;margin-left:-4px;border:4px solid transparent;border-top:6px solid var(--ink);opacity:.9}
+#cmpd{position:absolute;left:50%;top:34px;transform:translateX(-50%);font-size:10px;letter-spacing:.2em;opacity:.75}
+#stat{position:absolute;left:14px;top:10px;font-size:10px;letter-spacing:.14em;color:var(--mut);line-height:1.6}
+#stb{width:90px;height:2px;margin-top:3px;background:rgba(0,0,0,.45);opacity:0;transition:opacity .4s}#stb i{display:block;height:100%;width:100%;background:var(--ink)}
+#fps{opacity:.7}
+#fc{color:var(--ink);font-size:11px;letter-spacing:.2em;opacity:.9}
+#wsl{font-size:9px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase;margin-top:1px}
+#mini{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:15px;font-weight:600;letter-spacing:.12em;white-space:nowrap;display:none}
+body.st15 #mini{display:block}
+body.st15 #cmp,body.st15 #wp,body.st15 .s2only{display:none!important}
+#ctx{position:absolute;left:50%;top:64%;transform:translateX(-50%);font-size:12px;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;opacity:0;transition:opacity .25s;padding:4px 10px;background:rgba(10,12,8,.45)}
+#ctx.on{opacity:.95}
+#wp{position:absolute;right:16px;bottom:16px;min-width:176px;padding:8px 12px 7px 24px;text-align:right;background:linear-gradient(90deg,rgba(12,14,9,0),rgba(12,14,9,.62) 40%);border-right:2px solid var(--acc);transition:border-color .3s}
+#wic{display:block;width:104px;height:30px;margin:0 0 2px auto;fill:var(--ink);opacity:.85}
+.wl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);display:flex;justify-content:space-between;gap:12px}.wl #wn{color:var(--ink)}
+.wa{margin-top:1px}#wam{font-size:30px;font-weight:600;letter-spacing:.04em;transition:color .2s}#wrs{font-size:14px;color:var(--mut);margin-left:6px;letter-spacing:.06em}
+#wbar{height:2px;margin-top:4px;background:rgba(214,216,196,.18)}#wbar i{display:block;height:100%;width:100%;background:var(--ink);transition:width .1s}
+#wp.low{border-color:#d4a54a}#wp.low #wam{color:#e0b45a}#wp.empty{border-color:#b5604c}#wp.empty #wam{color:#d07a63}
+body.touch #wp{bottom:auto;top:8px;right:62px;min-width:150px;padding:4px 10px 4px 18px}body.touch #wic{width:76px;height:22px}body.touch #wam{font-size:24px}
+body.touch #ctx{top:70%}
+/* touch: minimap moves to the top left, clear of the pause button, weapon panel and crouch/prone buttons */
+body.touch #mm{top:46px;left:10px;right:auto;width:130px;height:130px}
+body.touch #bcr{left:20px;right:auto;top:216px;bottom:auto}body.touch #bpr{left:84px;right:auto;top:216px;bottom:auto}
+/* touch layout: aim and leans above, sprint, swap and fire stacked on the right (fire under swap),
+   reload above swap, fire mode by the joystick (joystick zone under prone, on the left) */
+body.touch #bads{right:18px;bottom:214px;left:auto;top:auto;width:74px;height:74px;font-size:11px}
+body.touch #brn{right:108px;bottom:250px;left:auto;top:auto;width:58px;height:58px}
+body.touch #bln{right:174px;bottom:250px;left:auto;top:auto;width:58px;height:58px}
+body.touch #bf{right:177px;bottom:36px;left:auto;top:auto;width:78px;height:78px}
+body.touch #bs{right:18px;bottom:110px;left:auto;top:auto;width:62px;height:62px}
+body.touch #bj{right:18px;bottom:34px;left:auto;top:auto;width:62px;height:62px}
+body.touch #bw{right:190px;bottom:112px;left:auto;top:auto;width:52px;height:52px}
+body.touch #bcr{left:190px;right:auto;top:auto;bottom:150px;width:56px;height:56px}
+body.touch #bpr{left:104px;right:auto;top:auto;bottom:150px;width:56px;height:56px}
+body.touch #br{left:auto;right:185px;top:auto;bottom:176px;width:62px;height:62px}
+body.touch #bm{left:150px;right:auto;top:auto;bottom:44px;width:50px;height:50px}
+body.touch #bc{right:10px;top:58px;left:auto;bottom:auto;width:50px;height:50px}
+body.touch #bu{right:66px;top:58px;left:auto;bottom:auto;width:44px;height:44px}
+body.touch #joy{height:58%}
+/* ---------- touch controls ---------- */
+body.touch .tb{background:radial-gradient(circle at 50% 40%,rgba(78,80,78,.5),rgba(16,16,16,.66));border:3px solid rgba(200,202,200,.45);box-shadow:0 0 0 3px rgba(18,18,18,.35),0 2px 6px rgba(0,0,0,.4);color:#fff;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+body.touch .tb svg{display:block}
+body.touch #bm{flex-direction:column;justify-content:center;gap:0}
+body.touch #bm .mlab{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;letter-spacing:.04em}
+body.touch #br svg{margin:0}
+#mob{display:none}body.touch[data-s=play] #mob{display:block}
+#look{position:fixed;right:0;top:0;width:62%;height:100%;z-index:1;touch-action:none}
+#joy{position:fixed;left:0;bottom:0;width:42%;height:72%;z-index:2;touch-action:none}
+#jb{position:fixed;width:120px;height:120px;border-radius:50%;border:1.5px solid rgba(214,216,196,.5);background:rgba(30,34,22,.35);display:none;pointer-events:none;z-index:2}
+#jt{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(200,206,160,.7)}
+.tb{position:fixed;border-radius:50%;background:rgba(24,28,18,.5);border:1.5px solid rgba(214,216,196,.55);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:10px;letter-spacing:.08em;z-index:5;touch-action:none;text-align:center;line-height:1.15}
+.tb.on{background:rgba(169,178,120,.6);color:#151810}
+#bf{right:20px;bottom:20px;width:88px;height:88px;font-size:14px;background:rgba(120,50,36,.5)}
+#bads{right:20px;bottom:120px;width:60px;height:60px}
+#bj{right:100px;bottom:112px;width:56px;height:56px}
+#bu{right:20px;top:150px;width:56px;height:56px}#bc{right:86px;top:150px;width:56px;height:56px}#bcr{right:20px;bottom:250px;width:52px;height:52px}#bpr{right:84px;bottom:250px;width:52px;height:52px}#bln{right:148px;bottom:250px;width:52px;height:52px}#brn{right:212px;bottom:250px;width:52px;height:52px}
+#br{right:122px;bottom:28px;width:56px;height:56px}
+#bs{right:186px;bottom:72px;width:56px;height:56px}
+#bw{right:176px;bottom:136px;width:52px;height:52px}
+#bm{right:252px;bottom:28px;width:50px;height:50px}
+#bp{right:10px;top:8px;width:44px;height:44px;font-size:14px}
+/* ---------- menus ---------- */
+#menu{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:flex-start;padding:0 4vw;background:linear-gradient(90deg,rgba(9,11,7,.92) 0,rgba(9,11,7,.8) 52%,rgba(9,11,7,.12) 100%)}
+#menu section{display:none;flex-direction:column;gap:9px;width:min(540px,92vw);max-height:96vh;overflow:auto;padding:2px 4px 2px 0;touch-action:pan-y}
+#menu section.on{display:flex}
+.brand small{font-size:10px;letter-spacing:.3em;color:var(--mut)}
+h1,h2{margin:2px 0 0;font-weight:500;letter-spacing:.28em;font-size:22px;color:#e4e6d2;padding-bottom:8px;border-bottom:1px solid var(--ln)}h2{font-size:17px}
+.lbl{font-size:10px;letter-spacing:.26em;color:var(--mut);margin-top:4px}
+.mb{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:8px 16px;background:rgba(26,30,19,.72);border:1px solid var(--ln);border-left:3px solid transparent;color:var(--ink);text-align:left;letter-spacing:.18em;font-size:13px;text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s}
+.mb:hover,.mb:focus-visible{background:rgba(52,58,36,.8);border-left-color:var(--acc);outline:none}
+.mb:active{background:rgba(80,90,52,.85)}
+.mb.sel{border-left-color:var(--acc);background:rgba(60,68,40,.85)}
+.mb.go{background:rgba(110,124,60,.85);color:#10130a;font-weight:700;justify-content:center;min-height:56px;font-size:15px}.mb.go:hover{background:rgba(139,154,80,.95)}
+.mb.dis{opacity:.4;pointer-events:none}
+.fac{flex-direction:column;align-items:flex-start;gap:4px;padding:12px 16px}.fac b{font-size:16px;letter-spacing:.24em;font-weight:600}.fac span{font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--mut);line-height:1.4}
+.row2{display:flex;gap:9px}.row2>*{flex:1}.row2 .mb{justify-content:center;text-align:center}
+.tabs{display:flex;gap:7px}.tab{flex:1;justify-content:center;padding:6px 4px;font-size:12px;letter-spacing:.12em}
+.sheet{border:1px solid var(--ln);background:rgba(14,16,10,.6);padding:8px 14px}
+.sr{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(214,216,196,.1);align-items:baseline}.sr:last-child{border:0}
+.sr>i{flex:0 0 84px;font-style:normal;font-size:10px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}.sr>span{flex:1;font-size:12.5px;line-height:1.4}.sr small{display:block;color:var(--mut);font-size:11px}
+.kr{display:flex;align-items:center;gap:10px;min-height:38px;border-bottom:1px solid rgba(214,216,196,.1)}.kr>span{flex:1;font-size:12px;letter-spacing:.06em}
+.kb{min-width:104px;min-height:32px;padding:4px 10px;background:rgba(26,30,19,.8);border:1px solid var(--ln);letter-spacing:.14em;font-size:12px;text-align:center;cursor:pointer}.kb:hover{border-color:var(--acc)}.kb.cap{background:rgba(110,124,60,.85);color:#10130a}
+#kc{font-size:12px;color:#e0b45a;line-height:1.5}#kc button{margin:4px 6px 0 0;padding:6px 12px;background:rgba(26,30,19,.8);border:1px solid var(--ln);letter-spacing:.14em;font-size:11px;cursor:pointer}
+.sl{display:flex;align-items:center;gap:12px;min-height:44px}.sl>span{flex:0 0 110px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}.sl>b{flex:0 0 44px;text-align:right;font-weight:500;color:var(--mut)}
+input[type=range]{flex:1;height:30px;accent-color:#a9b278;background:transparent;touch-action:pan-y}
+.note{font-size:11.5px;color:var(--mut);line-height:1.5}
+.tl{font-size:12px;line-height:1.7}.tl b{display:inline-block;min-width:74px;letter-spacing:.14em;color:var(--acc);font-weight:600}
+.kkeys{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;max-width:62%}.kb.kx{min-width:30px;padding:4px 8px}.kb.kadd{min-width:40px}.logbar{position:sticky;top:0;z-index:2;background:rgba(9,11,7,.96);padding:4px 0}
+@media(max-height:420px){#menu section{gap:5px}h2{font-size:15px;padding-bottom:4px}.brand small{font-size:9px}.sheet{padding:3px 12px}.sr small{font-size:10px;line-height:1.25}.tab{padding:3px 4px}.mb{min-height:40px;padding:4px 14px}.fac{padding:8px 14px}.mb.go{min-height:46px}h1{font-size:18px;padding-bottom:5px}.sr{padding:4px 0}.kr{min-height:34px}.sl{min-height:38px}}
+/* ---------- main menu, team and role screens ---------- */
+#s-home{width:min(580px,94vw)}
+#s-faction,#s-class{width:min(580px,94vw)}
+#s-ally{width:min(640px,94vw)}
+.al-status{font:600 12px/1.2 monospace;letter-spacing:.08em;color:#c9cfb0;margin:4px 0 10px}
+.al-tog{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font:600 12px monospace;letter-spacing:.06em;color:#c9cfb0}
+.al-tog .mb{min-height:40px;width:96px;justify-content:center}
+.al-map{position:relative;margin-bottom:10px}
+#alMap{width:100%;height:min(44vh,340px);display:block;border:1px solid #3a4030;border-radius:6px;background:#161a13;touch-action:none;cursor:crosshair}
+.al-zoom{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.al-zoom .mb{min-height:36px;width:52px;justify-content:center;padding:4px}
+.al-bar{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+.al-bar .mb{flex:1 1 120px;min-height:50px}
+.al-bar .mb.go{flex:1.4 1 150px}
+.al-info{flex:2 1 180px;display:flex;flex-direction:column;justify-content:center;font:12px/1.35 monospace;color:#d6dcbd;padding:4px 6px}
+.al-info small{opacity:.7;font:11px/1.3 monospace}
+.mb:disabled{opacity:.45;cursor:not-allowed}
+@media (max-height:520px){#alMap{height:26vh}.al-tog{margin-bottom:6px}.al-map{margin-bottom:6px}#s-ally .note{display:none}#s-ally .brand h2{font-size:18px}#s-ally .al-status{margin:0 0 6px}}
+.nav{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.mb.nv{min-height:44px;padding:6px 12px;background:rgba(14,16,10,.45);border-color:transparent;border-left-color:transparent;font-size:14px;letter-spacing:.2em}
+.mb.nv i{font-style:normal;color:var(--mut);font-size:18px}
+.mb.nv:hover,.mb.nv:focus-visible{background:rgba(52,58,36,.7)}
+.nowp{border:1px solid var(--ln);background:linear-gradient(100deg,rgba(38,62,98,.9),rgba(18,22,14,.92) 50%,rgba(104,36,30,.9));padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.nowp .k{font-size:10px;letter-spacing:.26em;color:#e6c46a}
+.nowp h3{margin:0;font-size:19px;letter-spacing:.14em;font-weight:600;color:#eef0dc}
+.nowp .vs{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.16em;color:#d6d8c4}
+.nowp .nt{color:#9fbcf0}.nowp .wt{color:#f0a392}
+.nowp .go{margin-top:4px;min-height:44px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fac.nato{border-top:3px solid #6f9be0}.fac.wp{border-top:3px solid #e05a4a}
+.cards .fac{min-height:150px;justify-content:flex-start}
+.split{display:grid;grid-template-columns:190px 1fr;gap:9px;align-items:start}
+.rlist{display:flex;flex-direction:column;gap:6px}
+.rlist .mb{min-height:52px;font-size:13px}
+.loadout{display:flex;flex-direction:column;gap:9px;min-width:0}
+.loadout .sheet{padding:6px 12px}
+.loadout .go{min-height:52px}
+@media(max-height:420px){.nav{flex-direction:row;flex-wrap:wrap;gap:4px}.nav .mb.nv{flex:1 1 auto;min-height:32px;justify-content:center;font-size:12px}.nav .mb.nv i{display:none}.mb.nv{min-height:36px;padding:3px 12px}.nowp{padding:8px 12px;gap:4px}.nowp h3{font-size:15px}.cards .fac{min-height:0}.rlist .mb{min-height:40px}.loadout .go{min-height:44px}}
+@media(max-width:560px){.split{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}
+/* ---------- match HUD, gunsmith, server browser, full map, scope, results, admin ---------- */
+#cq{position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:6;display:none;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;pointer-events:none}
+body[data-s=play] #cq{display:flex}
+#cq .cqm,#cq .cqtk{background:rgba(9,11,7,.72);border:1px solid var(--ln);padding:4px 10px;display:flex;gap:8px;align-items:baseline}
+#cq .cqtk span{color:var(--mut);font-size:10px}#cq .cqtk.nato b{color:#9fbcf0}#cq .cqtk.wp b{color:#f0a392}
+#cq b{font-weight:600;font-size:15px}
+#cqP{display:flex;gap:4px}
+.cqpt{position:relative;min-width:34px;height:30px;background:rgba(9,11,7,.72);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cqpt span{position:relative;font-weight:700;font-size:13px}.cqpt i{position:absolute;left:0;bottom:0;height:3px;background:#e0c060;width:0}
+.cqpt.nato{border-color:#6f9be0;background:rgba(40,70,120,.8)}.cqpt.wp{border-color:#e05a4a;background:rgba(120,40,34,.8)}
+#admBtn{position:fixed;right:8px;top:48px;z-index:9;min-height:34px;padding:4px 12px;font-size:11px}
+#scopeov{position:fixed;inset:0;z-index:4;display:none;pointer-events:none}
+#scopeov.on{display:block}
+#scopeov .sc-fade{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 40vmin,#000 41vmin)}
+#scopeov svg{position:absolute;left:50%;top:50%;width:min(100vh,100vw);height:min(100vh,100vw);transform:translate(-50%,-50%)}
+#dotov{position:fixed;inset:0;z-index:4;display:none;pointer-events:none;align-items:center;justify-content:center}
+#dotov.on{display:flex}#dotov span{width:7px;height:7px;border-radius:50%;background:#ff2a1a;box-shadow:0 0 6px #ff2a1a}
+#fmap{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.86)}
+#fmap.on{display:flex}
+.fm-box{display:flex;flex-direction:column;gap:8px;align-items:center}
+#fmc{background:#14180f;border:1px solid var(--ln)}
+.fm-foot{display:flex;gap:12px;align-items:center;width:100%;justify-content:space-between;font-size:11px;color:var(--mut)}
+.fm-foot .mb{min-height:36px;width:auto;padding:4px 14px}
+#matchend{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.6)}
+#matchend.on{display:flex}
+.me-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:18px 22px;width:min(440px,92vw);display:flex;flex-direction:column;gap:10px;text-align:center}
+.me-t{font-size:26px;letter-spacing:.3em;font-weight:600}.me-y{font-size:13px;letter-spacing:.08em}.me-y b{color:#eef0dc}
+#admPanel{position:fixed;right:8px;top:90px;z-index:9;display:none;width:min(320px,90vw);background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:10px;flex-direction:column;gap:8px}
+#admPanel.on{display:flex}
+.adm-t{font-size:11px;letter-spacing:.24em;color:#e6c46a}
+.adm-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px solid rgba(214,216,196,.1);padding-bottom:4px}
+.adm-row .kick{min-height:28px;padding:2px 10px;font-size:11px}
+.cashbar{border:1px solid var(--ln);background:rgba(14,16,10,.6);padding:8px 14px;letter-spacing:.2em;font-size:12px}.cashbar b{font-size:16px;color:#e6c46a;margin-left:6px}
+.gun-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(214,216,196,.1);padding:8px 0}
+.gun-row .gi{flex:1;display:flex;flex-direction:column;gap:3px}.gun-row .gi b{font-size:13px;letter-spacing:.12em;font-weight:600}.gun-row .gi span{font-size:11px;color:var(--mut);line-height:1.35}
+/* gunsmith: full-screen assembly screen (layout follows the reference photo) */
+body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#3b3e37 0,#202320 55%,#0b0c0a 100%)}
+#menu section.gsm{width:100vw;max-width:100vw;height:100vh;max-height:100vh;gap:0;padding:0;overflow:hidden;touch-action:auto;display:none}
+#menu section.gsm.on{display:flex}
+.gs-top{display:flex;justify-content:space-between;align-items:center;padding:12px 22px 4px}
+.gs-crumb{font-family:"Oswald","Arial Narrow",Impact,sans-serif;font-size:32px;letter-spacing:.03em;text-transform:uppercase;color:#9aa08a;line-height:1}
+.gs-crumb i{font-style:normal;margin:0 10px}.gs-crumb b{color:#f0f0ea;font-weight:700}
+.gs-cash{background:linear-gradient(90deg,#8a6a22,#d1ab52);color:#1a1606;font-weight:700;padding:7px 18px;font-size:20px;border-radius:4px}
+.gs-cash b{font-size:20px;color:#1a1606;margin:0}
+.gs-main{flex:1;min-height:0;display:grid;grid-template-columns:250px 1fr 290px;gap:14px;padding:8px 22px}
+.gs-stats,.gs-panel{background:rgba(12,14,10,.84);border:1px solid rgba(214,216,196,.12);padding:12px 14px;overflow:auto;min-height:0}
+.gs-h{font-size:13px;letter-spacing:.2em;color:#c8e04a;border-left:3px solid #c8e04a;padding-left:8px;margin-bottom:8px;text-transform:uppercase}
+.gs-h span{color:#f0f0ea}
+.gs-row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid rgba(214,216,196,.1);font-size:13px;letter-spacing:.04em}
+.gs-row span{color:#9aa08a}.gs-row b{color:#f0f0ea;font-weight:600;text-align:right}
+.gs-rec{margin-top:12px;font-size:11px;color:#9aa08a;letter-spacing:.06em;line-height:1.6}
+.gs-stage{position:relative;min-height:0}
+.gs-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.gs-lines line{stroke:#c8e04a;stroke-width:1.4;vector-effect:non-scaling-stroke;opacity:.85}
+.gs-gun{position:absolute;left:10%;top:40%;width:80%;aspect-ratio:3/1}
+.gs-gun svg{width:100%;height:100%;display:block}
+.gs-slot{position:absolute;width:28%;height:15%;background:rgba(14,16,10,.86);border:1px solid rgba(214,216,196,.24);padding:6px 10px;cursor:pointer;color:#f0f0ea;font:inherit;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0}
+.gs-slot small{font-size:10px;letter-spacing:.14em;color:#9aa08a;text-transform:uppercase}
+.gs-slot b{font-size:14px;letter-spacing:.05em;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-slot.sel{border-color:#c8e04a;box-shadow:inset 0 0 0 1px #c8e04a}
+.gs-slot.lock{opacity:.5;cursor:default}
+.gs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gs-tile{background:rgba(26,30,19,.75);border:1px solid rgba(214,216,196,.18);padding:9px 10px;min-height:74px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;cursor:pointer;color:#f0f0ea;font:inherit;text-align:left;letter-spacing:.05em}
+.gs-tile b{font-size:12px;font-weight:600;line-height:1.25}
+.gs-tile.eq{border-color:#c8e04a;background:rgba(60,68,40,.85)}
+.gs-tile.pick{box-shadow:inset 0 0 0 1px rgba(200,224,74,.6)}
+.gs-tile .st{font-size:11px;letter-spacing:.12em;color:#9aa08a}
+.gs-tile .pr{color:#c8e04a;font-weight:700;font-size:12px}
+.gs-tile.poor .pr{color:#b5604c}
+.gs-tile .sq{display:inline-block;width:8px;height:8px;background:#c8e04a;margin-right:4px;vertical-align:middle}
+.gs-tile:disabled{cursor:default}
+.gs-desc{margin-top:12px;font-size:11.5px;color:#9aa08a;line-height:1.5}
+.gs-foot{display:flex;align-items:center;gap:14px;padding:10px 22px 14px}
+.gs-foot .mb{min-width:150px;justify-content:center}
+.gs-foot .gs-hint{flex:1;text-align:center;font-size:11px;color:#9aa08a;letter-spacing:.06em}
+.gs-foot .mb.gs-done{min-width:260px;background:#c8e04a;color:#10130a;font-weight:700;border-color:#c8e04a}
+@media(max-height:520px){.gs-crumb{font-size:22px}.gs-cash{font-size:15px;padding:4px 12px}.gs-main{grid-template-columns:190px 1fr 230px;gap:10px;padding:4px 14px}.gs-row{padding:4px 0;font-size:11px}.gs-tile{min-height:52px;padding:6px 8px}.gs-tile b{font-size:11px}.gs-foot{padding:6px 14px}.gs-foot .mb{min-width:100px;min-height:38px}.gs-foot .mb.gs-done{min-width:200px}}
+.gbtn{min-width:140px;justify-content:center;min-height:40px;font-size:11px}.gbtn:disabled{opacity:.45}
+.txt{width:100%;min-height:40px;background:rgba(14,16,10,.8);border:1px solid var(--ln);color:var(--ink);padding:6px 10px;font-size:14px;letter-spacing:.06em}
+.txt:focus{outline:none;border-color:var(--acc)}
+.mb.srv{justify-content:space-between}.mb.srv .sp{color:var(--mut);font-size:11px;letter-spacing:.1em}
+@media(max-height:420px){#cq{top:2px}#cq .cqm,#cq .cqtk{padding:2px 8px}#cqP .cqpt{height:24px}#admBtn{top:40px}#admPanel{top:70px}.txt{min-height:32px}}
+.accbox{margin:0 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:6px}
+.accbox .acc-row{display:flex;gap:8px;flex-wrap:wrap}.accbox .acc-row .txt{flex:1;min-width:150px}
+#dnScr,#dthScr{position:fixed;inset:0;z-index:13;display:none;align-items:center;justify-content:center;background:rgba(4,3,3,.82);padding:16px}
+#dthScr{background:rgba(4,3,3,.96)}
+#dnScr.on,#dthScr.on{display:flex}
+.dn-box,.dth-box{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(420px,94vw);text-align:center;color:#e9e5d8;text-shadow:0 1px 3px #000}
+.dn-t{font-size:clamp(26px,6vw,40px);font-weight:700;letter-spacing:.04em}
+.dn-s{font-size:14px;letter-spacing:.08em;color:#e0604a;font-weight:600}
+.dn-ring{position:relative;width:min(220px,58vw);aspect-ratio:1}
+.dn-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dn-bg{fill:rgba(10,8,8,.7);stroke:#2a2622;stroke-width:6}
+.dn-fg{fill:none;stroke:#e0412e;stroke-width:6;stroke-linecap:round}
+.dn-fg.ok{stroke:#6fe38f}
+.dn-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dn-c b{font-size:clamp(40px,11vw,56px);font-weight:600;line-height:1}
+.dn-c span{font-size:12px;letter-spacing:.12em;color:#b9b2a3}
+.dn-near{font-size:13px;letter-spacing:.06em;color:#b9b2a3}
+.dn-box .mb,.dth-box .mb{min-width:200px}
+.dth-w{font-size:12px;letter-spacing:.3em;color:#9aa0a6}
+.dth-fig{width:min(150px,40vw);height:auto}
+.dth-fig rect,.dth-fig ellipse{fill:#5d6257;stroke:#8e9587;stroke-width:1}
+.dth-fig .hl{fill:#8a2a1e;stroke:#e0412e}
+.dth-fig circle.dd-hit{fill:#e0412e;stroke:#120a0a;stroke-width:1.2}
+.dth-fig circle.dd-stop{fill:#1c1c1c;stroke:#a7a7a7;stroke-width:1.4}
+.dth-stat{font-size:13px;letter-spacing:.06em;color:#c9c3b3}
+.dth-l{font-size:12px;letter-spacing:.3em;color:#9aa0a6;margin-top:6px}
+.dth-cause{font-size:clamp(28px,8vw,42px);font-weight:700;letter-spacing:.03em;color:#f3efe3;border-bottom:3px solid #e0412e;padding-bottom:6px}
+.dth-where{font-size:17px;letter-spacing:.06em;color:#e7e2d4}
+.dth-by{font-size:13px;letter-spacing:.05em;color:#c3bdae}
+#bleedV{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .5s;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(150,12,12,.6) 100%)}
+#bleedV.on{opacity:1}
+#bmed{right:250px;bottom:72px;width:56px;height:56px;font-size:12px}
+#bmed span{position:absolute;right:-4px;top:-4px;min-width:20px;height:20px;border-radius:10px;background:#8a2a1e;font-size:12px;line-height:20px;text-align:center}
+.kit-row{display:flex;align-items:center;gap:10px;justify-content:center;margin:8px 0}
+.kit-row b{min-width:24px;font-size:18px}
+</style></head>
+<body data-s="menu" data-v="">
+<div id="load">LOADING THE FIELD...</div>
+<div id="err" class="hide"></div>
+<div id="rot">ROTATE DEVICE TO LANDSCAPE</div>
+<div id="hud">
+ <canvas id="mm" width="240" height="240" aria-label="Minimap"></canvas>
+ <div id="cmp"><canvas id="cmpc"></canvas><i id="cmpk"></i><span id="cmpd">000</span></div>
+ <div id="stat"><div id="fc"></div><div id="st1"></div><div id="stb"><i id="sta"></i></div><div id="fps"></div></div>
+ <div id="ctx"></div><div id="mini"></div>
+ <div id="wp"><svg id="wic" viewBox="0 0 120 40"></svg><div class="wl"><span id="wn"></span><span id="wm"></span></div><div id="wsl"></div><div class="wa"><b id="wam"></b><span id="wrs"></span></div><div id="wbar"><i></i></div></div>
+</div>
+<div id="mob">
+ <div id="look"></div><div id="joy"></div><div id="jb"><div id="jt"></div></div>
+ <div class="tb" id="bf">Fire</div><div class="tb" id="bu">Enter</div><div class="tb" id="bc">View</div><div class="tb" id="bcr">Crouch</div><div class="tb" id="bpr">Prone</div><div class="tb" id="bln">Lean<br>L</div><div class="tb" id="brn">Lean<br>R</div><div class="tb" id="bads">Aim</div><div class="tb" id="bj">Vault</div><div class="tb" id="br"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M8.5 2.5h7l1.2 19h-9.4z" fill="#f2f2f0"/><path d="M8.5 7.5h7M8.5 11.5h7M8.7 15.5h6.6" stroke="#2a2d2a" stroke-width="1" fill="none"/></svg></div>
+ <div class="tb" id="bs">Sprint</div><div class="tb" id="bw">Swap</div><div class="tb" id="bm"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg><span class="mlab">SEMI</span></div><div class="tb" id="bmed">MED<span id="bmedN">2</span></div><div class="tb" id="bp">II</div>
+</div>
+<div id="cq"><div class="cqm"><span class="cqlab">$</span><b id="cqCash">0</b></div>
+ <div class="cqtk nato"><span>NATO</span><b id="cqN">300</b></div>
+ <div id="cqP"></div>
+ <div class="cqtk wp"><span>WARSAW PACT</span><b id="cqW">300</b></div></div>
+<div id="scopeov"><div class="sc-fade"></div><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="79" fill="none" stroke="#000" stroke-width="2.5"/><circle cx="100" cy="100" r="82" fill="none" stroke="#2a2c28" stroke-width="1.5" opacity=".7"/><path d="M18 100H182M100 18V182" stroke="#050605" stroke-width=".6"/><path d="M92 100H108M100 92V108" stroke="#050605" stroke-width="1.8"/><circle cx="28" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="28" r="0.7" fill="#050605"/><circle cx="36" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="36" r="1.1" fill="#050605"/><text x="36" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="37.2" font-size="3.4" fill="#050605">16</text><circle cx="44" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="44" r="0.7" fill="#050605"/><circle cx="52" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="52" r="1.1" fill="#050605"/><text x="52" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="53.2" font-size="3.4" fill="#050605">12</text><circle cx="60" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="60" r="0.7" fill="#050605"/><circle cx="68" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="68" r="1.1" fill="#050605"/><text x="68" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="69.2" font-size="3.4" fill="#050605">8</text><circle cx="76" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="76" r="0.7" fill="#050605"/><circle cx="84" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="84" r="1.1" fill="#050605"/><text x="84" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="85.2" font-size="3.4" fill="#050605">4</text><circle cx="92" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="92" r="0.7" fill="#050605"/><circle cx="108" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="108" r="0.7" fill="#050605"/><circle cx="116" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="116" r="1.1" fill="#050605"/><text x="116" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="117.2" font-size="3.4" fill="#050605">4</text><circle cx="124" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="124" r="0.7" fill="#050605"/><circle cx="132" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="132" r="1.1" fill="#050605"/><text x="132" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="133.2" font-size="3.4" fill="#050605">8</text><circle cx="140" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="140" r="0.7" fill="#050605"/><circle cx="148" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="148" r="1.1" fill="#050605"/><text x="148" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="149.2" font-size="3.4" fill="#050605">12</text><circle cx="156" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="156" r="0.7" fill="#050605"/><circle cx="164" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="164" r="1.1" fill="#050605"/><text x="164" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="165.2" font-size="3.4" fill="#050605">16</text><circle cx="172" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="172" r="0.7" fill="#050605"/></svg></div>
+<div id="dotov"><span></span></div>
+<div id="fmap"><div class="fm-box"><canvas id="fmc"></canvas><div class="fm-foot"><span id="fmLegend"></span><button class="mb" id="fmClose">Close map</button></div></div></div>
+<div id="matchend"><div class="me-box"><div class="me-t" id="meTitle"></div><div id="meWin"></div><div class="me-y" id="meYou"></div>
+ <div class="row2"><button class="mb go" id="meAgain">Play again</button><button class="mb" id="meMenu">Main menu</button></div><div class="note" id="meNote"></div></div></div>
+<div id="dnScr"><div class="dn-box">
+ <div class="dn-t">YOU ARE DOWN</div>
+ <div class="dn-s" id="dnSub">BLEEDING OUT</div>
+ <div class="dn-ring"><svg viewBox="0 0 120 120"><circle class="dn-bg" cx="60" cy="60" r="54"/><circle class="dn-fg" id="dnArc" cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/></svg>
+  <div class="dn-c"><b id="dnNum">60</b><span id="dnLab">SECONDS</span></div></div>
+ <div class="dn-near" id="dnNear">NO TEAMMATES NEARBY</div>
+ <button class="mb" id="dnGive">GIVE UP</button>
+</div></div>
+<div id="dthScr"><div class="dth-box">
+ <div class="dth-w">WOUNDS</div>
+ <svg class="dth-fig" viewBox="0 0 120 190" id="dthFig">
+  <ellipse data-p="head" cx="60" cy="22" rx="15" ry="18"/>
+  <rect data-p="chest" x="40" y="44" width="40" height="54" rx="8"/>
+  <rect data-p="larm" x="18" y="46" width="18" height="58" rx="8"/>
+  <rect data-p="rarm" x="84" y="46" width="18" height="58" rx="8"/>
+  <rect data-p="lleg" x="40" y="102" width="18" height="84" rx="7"/>
+  <rect data-p="rleg" x="62" y="102" width="18" height="84" rx="7"/>
+  <g id="dthDots"></g>
+ </svg>
+ <div class="dth-stat" id="dthStat"></div>
+ <div class="dth-l">CAUSE OF DEATH</div>
+ <div class="dth-cause" id="dthCause"></div>
+ <div class="dth-where" id="dthWhere"></div>
+ <div class="dth-by" id="dthBy"></div>
+ <button class="mb go" id="dthOk">CONTINUE</button>
+</div></div>
+<div id="bleedV"></div>
+<button id="admBtn" class="mb" style="display:none">ADMIN</button>
+<div id="admPanel"><div class="adm-t">ADMIN PANEL</div><div id="admList"></div><div class="row2"><button class="mb" id="admRestart">Restart match</button><button class="mb" id="admClose">Close</button></div></div>
+<div id="menu">
+ <section id="s-home">
+  <div class="brand"><small>CENTRAL EUROPE &middot; 1969</small><h1>PROJECT FIELDCRAFT</h1></div>
+  <div class="accbox">
+   <div id="accForm">
+    <div class="acc-row"><input class="txt" id="accName" maxlength="16" placeholder="Name (3-16: letters, numbers, _)" autocomplete="username" spellcheck="false">
+    <input class="txt" id="accPass" type="password" placeholder="Password (6+ characters)" autocomplete="current-password"></div>
+    <div class="row2"><button class="mb" id="accLogin">Log in</button><button class="mb" id="accReg">Create account</button></div>
+   </div>
+   <div id="accSrvBox" style="display:none"><div class="lbl">SERVER ADDRESS (SHARED ACCOUNTS ON ALL DEVICES)</div><input class="txt" id="accSrv" placeholder="http://your-server:8080" autocomplete="off" spellcheck="false"></div>
+   <div id="accIn" style="display:none"><div class="note" id="accWho"></div><div class="row2"><button class="mb" id="accOut">Log out</button></div></div>
+   <div class="note" id="accMsg"></div>
+  </div>
+  <div class="nav">
+   <button class="mb nv" data-go="mode"><span>PLAY</span><i>&rsaquo;</i></button>
+   <button class="mb nv s2only" data-go="controls"><span>CONTROLS</span><i>&rsaquo;</i></button>
+   <button class="mb nv" data-go="graphics"><span>GRAPHICS</span><i>&rsaquo;</i></button>
+   <button class="mb nv s2only" data-go="audio"><span>AUDIO</span><i>&rsaquo;</i></button>
+   <button class="mb nv" data-go="servers"><span>MULTIPLAYER</span><i>&rsaquo;</i></button>
+   <button class="mb nv" data-go="log"><span>WHAT'S NEW</span><i>&rsaquo;</i></button>
+  </div>
+  <div class="nowp">
+   <div class="k">NOW PLAYING &middot; MAIN MAP</div>
+   <h3>PROJECT FIELDCRAFT</h3>
+   <div class="vs"><span class="nt">NATO</span><span>VS</span><span class="wt">WARSAW PACT</span></div>
+   <div class="note">Two sides, AI squads and civilians on the map. Pick a side, then a role.</div>
+   <button class="mb go" data-go="mode">PLAY</button>
+  </div>
+  <button class="mb nv" data-go="log"><span>PATCH NOTES</span><i>&rsaquo;</i></button>
+ </section>
+ <section id="s-mode">
+  <div class="brand"><small>CHOOSE HOW TO PLAY</small><h2>PLAY</h2></div>
+  <div class="cards">
+   <button class="mb fac" id="pveBtn" data-mode="pve"><b>PVE</b><span>Single player against AI squads on the map. Your gunsmith and stats are saved to your account when you are logged in.</span></button>
+   <button class="mb fac" id="pvpBtn" data-mode="pvp"><b>PVP</b><span>Play against other people. You are joined to a server automatically. You need to be logged in.</span></button>
+  </div>
+  <div class="note" id="modeNote"></div>
+  <div class="row2"><button class="mb" data-back="1">Back</button></div>
+ </section>
+ <section id="s-faction">
+  <div class="brand"><small>CHOOSE YOUR SIDE</small><h2>SELECT TEAM</h2></div>
+  <div class="cards">
+   <button class="mb fac nato" data-f="nato"><b>NATO</b><span>US-pattern 1968 field kit: olive-drab fatigues, M1 steel helmet, canvas webbing. M16A2 / M60E3 / Beretta M9.</span></button>
+   <button class="mb fac wp" data-f="wp"><b>WARSAW PACT</b><span>Soviet / Eastern Bloc kit: olive-green uniform, SSh-60 steel helmet, belt and Y-straps. AK-74 / RPK-74 / Makarov PM.</span></button>
+  </div>
+  <div class="row2"><button class="mb" id="fBack">Back</button></div>
+ </section>
+ <section id="s-class">
+  <div class="brand"><small id="cf-f"></small><h2>SELECT ROLE</h2></div>
+  <div class="split">
+   <div class="rlist">
+    <button class="mb tab" data-c="rifleman">Rifleman</button>
+    <button class="mb tab" data-c="assault">Assault</button>
+    <button class="mb tab" data-c="support">Support</button>
+   </div>
+   <div class="loadout">
+    <div class="sheet" id="cf-sheet"></div>
+    <div class="kit-row"><span>MEDKITS</span><button class="mb" id="kitMinus">&minus;</button><b id="kitN">2</b><button class="mb" id="kitPlus">+</button></div>
+    <button class="mb go" id="bDeploy">Deploy</button>
+    <button class="mb" id="bAlly">Spawn on ally</button>
+   </div>
+  </div>
+  <div class="note" id="clNote"></div>
+  <div class="row2"><button class="mb" id="bBack">Back</button><button class="mb" data-go="gun">GUNSMITH</button></div>
+ </section>
+  <section id="s-ally">
+  <div class="brand"><small>ALLEGIANCE</small><h2>SPAWN ON ALLY</h2></div>
+  <div class="al-status" id="alCount">0 ALLIES IN THE FIELD • 0 READY</div>
+  <div class="al-tog"><span>TEAMMATES CAN SPAWN ON YOU</span><button class="mb" id="alTog">OFF</button></div>
+  <div class="al-map"><canvas id="alMap"></canvas><div class="al-zoom"><button class="mb" id="alZin" aria-label="Zoom in">+</button><button class="mb" id="alZout" aria-label="Zoom out">&minus;</button><button class="mb" id="alFit">FIT</button></div></div>
+  <div class="al-bar">
+   <button class="mb" id="alBack">Back</button>
+   <div class="al-info"><b>SPAWN POINT: <span id="alPick">SELECT AN ALLY</span></b><small>Tap an ally to pick, double-tap to spawn</small></div>
+   <button class="mb" id="alBase">Deploy at base</button>
+   <button class="mb go" id="alSpawn" disabled>SELECT A SPAWN</button>
+  </div>
+  <div class="note">The teammate switch is saved for online matches. It has no effect in single-player.</div>
+ </section>
+
+ <section id="s-gun" class="gsm">
+  <div class="gs-top"><div class="gs-crumb">GUNSMITH<i>&rsaquo;</i><b id="gGunName">GUN</b></div><div class="gs-cash">$<b id="gCash">0</b></div></div>
+  <div class="gs-main">
+   <aside class="gs-stats"><div class="gs-h">STATS</div><div id="gStatRows"></div><div class="gs-rec" id="gStats"></div></aside>
+   <div class="gs-stage">
+    <svg class="gs-lines" id="gLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="gs-gun" id="gGun"></div>
+    <div id="gSlots"></div>
+   </div>
+   <aside class="gs-panel"><div class="gs-h">CHANGE ATTACHMENT <span id="gSlotName"></span></div><div class="gs-grid" id="gList"></div><div class="gs-desc" id="gDesc"></div></aside>
+  </div>
+  <div class="gs-foot"><button class="mb" data-back="1">&larr; Back</button><div class="gs-hint">Only optics fit in this build. The other slots are shown for the layout.</div><button class="mb go gs-done" data-back="1">COMPLETE ASSEMBLY</button></div>
+ </section>
+ <section id="s-servers">
+  <div class="brand"><small>MULTIPLAYER &middot; HUMAN PLAYERS ONLY</small><h2>SERVER BROWSER</h2></div>
+  <div class="lbl">SERVER ADDRESS</div>
+  <input class="txt" id="srvUrl" placeholder="ws://host:8080" autocomplete="off" spellcheck="false">
+  <div class="row2"><button class="mb" id="srvRefresh">Refresh list</button><button class="mb" data-back="1">Back</button></div>
+  <div class="note" id="srvNote"></div>
+  <div id="srvList"></div>
+ </section>
+ <section id="s-pause">
+  <div class="brand"><small>OPERATION PAUSED</small><h2>FIELD MENU</h2></div>
+  <button class="mb" id="pResume">Resume</button><button class="mb" data-go="log">What's new</button><button class="mb" data-go="class">Change class</button><button class="mb s2only" data-go="controls">Controls</button>
+  <button class="mb" data-go="graphics">Graphics</button><button class="mb s2only" data-go="audio">Audio</button><button class="mb" id="pMain" data-go="confirm">Main menu</button>
+ </section>
+ <section id="s-controls">
+  <div class="brand"><h2>CONTROLS</h2></div>
+  <div id="kbw"><div id="kb"></div><div id="kc"></div><div class="note" style="margin-top:6px">Click a binding, then press the new key or mouse button. Esc cancels. Mouse sensitivity is set below.</div></div>
+  <div id="tcw" class="hide"><div class="tl"><b>MOVE</b>left stick<br><b>LOOK</b>drag right side<br><b>FIRE</b>large button<br><b>AIM</b>toggle iron sights<br><b>RELOAD</b> <b style="min-width:0">SWAP</b> weapon &nbsp;<b style="min-width:0">MODE</b> fire mode<br><b>SPRINT</b>toggle &nbsp;<b style="min-width:0">JUMP</b></div></div>
+  <div class="sl"><span id="sensL">Mouse</span><input type="range" id="sens" min="30" max="250" step="5"><b id="sensV"></b></div>
+  <div class="row2"><button class="mb" id="gLean">Lean: HOLD</button></div>
+  <div class="row2"><button class="mb" id="kReset">Restore defaults</button><button class="mb" data-back="1">Back</button></div>
+ </section>
+ <section id="s-graphics">
+  <div class="brand"><h2>GRAPHICS</h2></div>
+  <div class="lbl">QUALITY PRESET</div>
+  <div class="row2"><button class="mb" id="qlow">Low</button><button class="mb" id="qmed">Medium</button><button class="mb" id="qhigh">High</button></div>
+  <div class="note">Low: fewer trees and grass, no shadows, lower resolution. Medium: dense forest, sun shadows, full resolution. Resolution is a scale on top of the preset and also adapts automatically if the frame rate drops. View distance scales the fog. Shadows only exist in Medium. Only changing the preset rebuilds the scenery; the other settings apply instantly.</div>
+  <div class="sl"><span>Resolution</span><input type="range" id="gRes" min="50" max="100" step="5"><b></b></div>
+  <div class="sl"><span>View distance</span><input type="range" id="gView" min="60" max="130" step="10"><b></b></div>
+  <button class="mb" id="gShadow">Shadows: ON</button>
+  <button class="mb" id="gFps">Performance readout: OFF</button>
+  <button class="mb" data-back="1">Back</button>
+ </section>
+ <section id="s-audio">
+  <div class="brand"><h2>AUDIO</h2></div>
+  <div class="sl"><span>Master</span><input type="range" id="vMaster" min="0" max="100"><b></b></div>
+  <div class="sl"><span>Weapons</span><input type="range" id="vWpn" min="0" max="100"><b></b></div>
+  <div class="sl"><span>Effects</span><input type="range" id="vFx" min="0" max="100"><b></b></div>
+  <button class="mb" id="aMute">Mute: OFF</button>
+  <div class="note">Weapons: gunshots, reloads, weapon switching. Effects: hit confirmation and menu sounds. All sound is synthesised in the browser (no files); if audio is unavailable the game stays silent. Audio starts after your first click or key press.</div>
+  <div class="row2"><button class="mb" id="aTest">Test sounds</button><button class="mb" data-back="1">Back</button></div>
+ </section>
+ <section id="s-log">
+  <div class="logbar"><button class="mb" data-back="1">&larr; Back</button></div>
+  <div class="brand"><h2>BETA 0.4.5 - MAIN MAP</h2></div>
+  <p><b>Damage, bleeding and revive (0.4.5).</b> Hits land on a place: head, chest, arm or leg. A helmet stops the first 3 pistol rounds to the head; rifle rounds go through, so a rifle head shot kills. A vest stops the first 4 rifle rounds to the chest. Arm and leg wounds bleed, and a chest wound that gets through bleeds hard. At 50 blood you are downed, with 60 seconds before you bleed out. A teammate who holds MED next to you for 5 seconds revives you with one of their kits. MED on yourself treats the most severe wound, one kit per wound. Choose 0 to 6 medkits on the role menu. The death screen shows your wounds and what killed you.</p>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 17 - MAIN MAP</h2></div>
+  <div class="cl">
+    <p><b>Floors, windows and streets (0.4.0 pre-release 17, update 3).</b> Buildings have stairs, so you can climb to the upper floors. Each window now has a glass pane, and a bullet breaks it, leaving an open hole. Walls stop bullets. The city is laid out on a street grid with pavements, centre lines and lamps. Trucks still drive on the road network. The class menu has two buttons: DEPLOY AT BASE, and SPAWN ON ALLY, which opens a map of your allies. Tap an ally to pick it, and double-tap to spawn there. The touch Enter button by a truck shows ENTER TRUCK when you are close enough to get in.</p>
+  <p><b>City map, new AK-74M, scopes paused (0.4.0 pre-release 17).</b> The map is now a flat city: skyscrapers and blocks built from the test map pieces, with framed windows with glass panes that break when shot, a doorway on the road side of every building you can walk into, and streets with lamps. Hills sit on the outskirts beyond the city as sniping ground, and a concrete edge wall marks the limit of the map. The training range is removed. The bases, roads, outposts and capture points are where they were. The AK-74M is your new model. Scopes are switched off while you model them: no scope models, no magnification, and the optic slot is locked in the gunsmith.</p>
+  <p><b>Gunsmith per gun, and scope models (0.4.0 pre-release 17).</b> GUNSMITH is now only on the class menu, so you customise the primary gun of the faction and role you have selected. Each gun keeps its own owned optics and equipped optic, so money spent on one gun does not carry to another. Scopes saved before this change were copied to each gun once. The red dot, 3x and 6x scopes now sit on the rifle, and aiming down a scope moves the camera behind the eyepiece and zooms the view (3x, 6x). Limits: the scope models are placeholders, to be replaced; there is no reticle yet; only optics can be fitted (other slots are drawn but locked); scopes were not checked on a phone.</p>
+  <p><b>Accounts, PVE and PVP, death to the role menu (0.4.0 pre-release 17).</b> ACCOUNT on the main menu lets you create an account or log in. Your cash, owned scopes, equipped scope and stats are saved to the account on the server, so they follow you to another browser. Progress made while logged out stays in that browser only. PLAY now asks for PVE (single player against AI squads) or PVP (against other people). PVP needs a login, then finds the server with the most players that still has room and takes you to team and role selection for it. Dying no longer respawns you straight away: you go back to the role menu, with a note that you were killed, and deploy again from there. In PVP you stay on the same server. The GUNSMITH button is on the role menu. Limits: passwords are stored as hashes on the server, but the server runs over plain HTTP unless you put it behind HTTPS, so do not reuse an important password. Only one login is active per account at a time: logging in elsewhere signs out the other browser. Only the wallet is saved to the account; settings are still per browser. Admins are the account names in the server's admin list, so the owner should register those names first.</p>
+  <p><b>Full map, Gunsmith, multiplayer and conquest (0.4.0 pre-release 17).</b> Hold M (or tap the minimap, or use the full-map button) to open a full-screen map. It shows the capture points with their owners and progress, the bases, your team's living soldiers (the team leader is marked gold) and your vehicle, and it stays open without pausing the game. Enemy positions are not shown. The Gunsmith on the home screen lets you buy scopes with money earned from kills ($100), captures ($200), match wins ($1000) and match losses ($250). Iron sights are free, the red dot costs $400, the 3x scope $900 and the 6x scope $1800. Scopes apply a zoom to the primary weapon when aimed, with a reticle overlay. They are an overlay, not a model attachment. Money is saved per browser and is not shared. Multiplayer: the server also serves the game, so open the server's address in a browser (for example http://your-ip:8080), go to PLAY, MULTIPLAYER, click Refresh, pick a server, choose a team and role, and deploy. Servers are run by whoever hosts server.js and are not reachable from the sandbox. Multiplayer is human-only (no NPC sync), and the server relays what clients report about their shots, hits and deaths without checking them, so it is not cheat-proof. Admins are players whose name is in the server's admin list; they can kick players and restart the match. If no admin key is set, anyone who types an admin name gets admin rights. Conquest is the multiplayer and single-player mode: five villages are the capture points; a point flips after 12 seconds of one team holding it alone; tickets fall while a team holds fewer points; a team wins at zero tickets or by holding all points for 20 seconds. Limits: multiplayer was tested with two browser clients on one machine; remote player facing was not verified visually, and phone play was not tested.</p>
+  <p><b>New menus (0.4.0 pre-release 17).</b> The game now opens on a main menu with PLAY, CONTROLS, GRAPHICS, AUDIO and WHAT'S NEW, and a Now Playing card. PLAY opens SELECT TEAM (NATO or WARSAW PACT), then SELECT ROLE: Rifleman, Assault or Support, with a loadout panel and a DEPLOY AS button. Back buttons return one screen at a time, and the field menu's Main menu returns here. Limits: STORE, PROFILE, RECORDS, CODES and spawn-on-ally are not in this build. Role limits are shown but not enforced, and the menu shows no slot counts.</p>
+  <p><b>NPC movement, engagement and squads (0.4.0 pre-release 17).</b> Patrol leaders stall-check by net movement: a leader that has gone less than 1.5 m in 4 s replans, and after three replans it takes the next route point. Each squad now picks its own lane positions and jitter, so two squads no longer share the same destinations. Patrol squads hold at village objectives for about 35 to 70 s before moving on. Opposing soldiers outside the close-range tier now sense each other and open fire at long range, and distant fights are resolved statistically. Gunfire within 60 m is heard: a listener goes suspicious and investigates the sound, without seeing the shooter. An investigation that finds nothing returns to routine.</p>
+  <p><b>Truck spawn and driving (0.4.0 pre-release 17).</b> Each truck spawn point now has a large yellow TRUCK SPAWN sign on two posts, with a tall yellow beacon mast beside it that can be seen from about 120 m away. The trigger pad has the same marker, a little smaller. A flat yellow outline on the ground shows where the truck appears. Trucks now steer like vehicles: the wheel swings to about 29 degrees at a limited rate and returns to centre when released, the heading changes at a rate set by speed and steering, so a stopped truck cannot turn on the spot, braking slows it at about 7 m/s&sup2;, engine drag slows it when no throttle is held, and reverse is limited to 4 m/s with the steering reversed.</p>
+  <p><b>Limits.</b> Distant skirmishes are statistical, not simulated shot by shot. Civilians do not respawn. Mates who can also see a target cannot be separated from mates told about it. Thin walls can be missed by line-of-sight sampling. Stall recovery and the destination check were run in one desktop test browser only; the phone and Chromebook were not tested. Truck controls were checked with a fixed-step simulation through the game's own truck code, not with live keyboard timing, and touch steering was not tested on a device. The trucks still appear about 15 m from the pad.</p>
+  <p><b>Patrols, respawns, awareness and squads (0.4.0 pre-release 16).</b> Patrols now move out. Units more than 220 m from the player were frozen, so the far squads never left their base; they now keep moving on their routes at a low rate, without being drawn. Squad leaders steer along a real path through gates and around walls, not in straight lines, so they no longer stay in their base compound. A stalled leader replans; a point it cannot reach is skipped.</p>
+  <p><b>Respawn.</b> A dead soldier's body is removed after 12 s. Its squad slot is refilled 30 s after the death, at a free spawn point at the base, up to eight per side. Checked over three kill waves: every slot refilled, no duplicates, no orphaned models.</p>
+  <p><b>Awareness and aiming.</b> Soldiers move from unaware to suspicious (investigating), then to alert after a reaction delay of about 0.5 to 2 s, then to engaged. Awareness builds over time: faster when the target is near, moving or standing; slower when the player is crouched or prone. A soldier aims at the last place it saw the target, not the live position, and drops the target after about 6 s without sight. Each soldier has its own skill: hit chance falls with range, against moving or prone targets, and under fire, and misses land close.</p>
+  <p><b>Squads.</b> A confirmed contact is passed to squad mates within 60 m. If a leader is lost, the next soldier in the squad takes over the route and the rest keep formation.</p>
+  <p><b>Truck spawn sign.</b> A TRUCK SPAWN sign now also stands beside each truck trigger pad, the yellow ring that spawns the trucks. The sign at the truck spawn point is kept.</p>
+  <p><b>Limits.</b> Civilians do not respawn. Mates who can also see a target themselves cannot be separated from mates told about it. Thin walls can be missed by the line-of-sight sampling; solid walls are caught. Return to routine after an investigation and stall recovery were checked indirectly. Timing was measured in a desktop test browser only, not on a phone. The trucks still appear about 15 m from the pad.</p>
+  <p><b>More than one key per action, and an easier way out of this log (0.4.0 pre-release 15).</b> Each action can now have up to six keys or mouse buttons, like Minecraft keybinds. Open Controls, press + on an action, then press the new key or mouse button. Press &times; to remove an extra key. If a key is already used, the prompt offers SWAP (the two actions exchange keys) or MOVE (the key moves from its other action), or CANCEL. Saved controls from earlier builds still load. Restore defaults clears the extra keys. The changelog has a Back button at the top as well as at the bottom, and Escape also leaves it.</p>
+  <p><b>Truck spawn sign (0.4.0 pre-release 15).</b> A yellow TRUCK SPAWN sign on posts stands 7 m beside each truck spawn point, on the side away from the road, so it does not block the road or a spawning truck. It has no collision. Checked by scripted test and one screenshot at 12 m.</p>
+  <p><b>Limits.</b> The AI, patrol, respawn and squad-coordination work in the pre-release 15 spec is not in this build yet. Soldiers still do not respawn after they die, and patrol and awareness behaviour is unchanged from pre-release 14. The sign text is drawn on a flat panel, so it reads best from the front. Checked with scripted tests listed in the test report.</p>
+  <p><b>Soldier uniforms match the player (0.4.0 pre-release 14).</b> Soldiers now use their faction's uniform, sleeve, webbing and helmet colours, taken from the same table as the player's kit. Each soldier carries the weapon its faction issues for its class, so Assault soldiers have the machine gun or light machine gun, and Riflemen and Support soldiers carry the rifle. Each class has its own kit: riflemen wear ammunition pouches, assault soldiers a pack, and support soldiers a radio on the back. Squad leaders are riflemen. Civilians flee more reliably: they turn around obstacles instead of stopping.</p>
+  <p><b>Limits.</b> Models are still boxes. Soldier weapons are simplified shapes, not the first-person weapon models. Soldiers do not use the player's pistol. Class limits are not enforced for NPC squads. Checked with scripted tests and one screenshot.</p>
+  <p><b>Squads, combat, and more people (0.4.0 pre-release 13).</b> Each side has two squads of four: a leader patrols routes between its base and village lanes, and the other three follow in formation. Squads on the other side are hostile. Soldiers acquire a target by sight, fire with a distance-based hit chance, leave tracers and make the rifle sound. A soldier that is hit goes to cover if there is a hiding spot nearby. Soldiers throw grenades at you from 14 to 40 m, with a 6 m blast radius. Your squad fights the enemy but does not fire on you. Thirty civilians walk village lanes and flee gunfire. A killed character falls over and sinks slightly. Characters near you have a detailed model: helmet, vest, rifle, arms and legs that swing as they walk, and an aim pose when alert.</p>
+  <p><b>Fixes.</b> Soldiers used to stay on alert forever after losing sight of you. They now return to patrol after a short memory. Units that slide along a wall for 3 s take a new nearby waypoint. Units now step around fences and walls instead of stopping at them.</p>
+  <p><b>Limits.</b> There is no pathfinding: routes are straight lines, and units slide around obstacles. Characters walk through trees, which are not collision for characters. Cover exists only where there is an obstacle; open ground has none. Grenades fly straight and do not bounce. Enemy fire has no spatial sound, only the rifle sound at a fixed volume. Models are boxes with pivoted limbs; there are no textures, no facial detail, and no ragdoll physics. The fall is a scripted tilt. In tests, one squad leader stayed near its base in some runs. Soldier-against-soldier fights were not tested directly.</p>
+  <p><b>Characters, combat and health (0.4.0 pre-release 12).</b> Two civilians walk each village lane and flee when shot at or approached. Four enemy soldiers patrol the enemy base. A soldier that sees you within 85 m, inside a 140-degree cone and with a clear line of sight goes on alert and fires at up to 120 m. The chance of a hit falls with distance. A hit costs 18 HP. You start with 100 HP, shown in the top bar. At 0 HP you respawn at your base with full health. Your rounds hit soldiers and civilians: head 100 damage, body 40, legs 25.</p>
+  <p><b>Simulation levels.</b> Characters closer than 90 m update every frame and can see and fire. Between 90 and 220 m they update 4 times a second and only patrol. Beyond 220 m they are hidden and not updated. Numbers are fixed, so all quality presets have the same characters.</p>
+  <p><b>Fixes.</b> Lean toggle now records a key press even if it starts and ends between two frames, so a quick tap is not lost. Doors on villages along the x axis now face their street (see pre-release 11).</p>
+  <p><b>Limits.</b> Soldier AI has no cover, no squad tactics, no friendly soldiers, and no grenades. Enemy fire has no sound and no tracers. Characters are simple box models with no animation. Death is a fall, not a ragdoll. Civilians do not react beyond fleeing. Performance is measured as JavaScript time in headless Chromium only: about 0.01 ms per frame near the player with 14 characters. GPU cost, real hardware and phone touch are not measured. Scenario tests are 12 scripted checks; the damage check is statistical because hits are random.</p>
+  <p><b>Town square, workshops, farm interiors and an extra connector (0.4.0 pre-release 11).</b> The largest villages have a paved square with a well and two benches, cleared of homes within 12 m of the centre. Mid-size and large villages have a workshop in place of one home, with a workbench, vice, pegboard of tools and crates. Barns and farm buildings have a cart and sacks. The one village that had no road connector now has a two-part track with a bend.</p>
+  <p><b>Fix.</b> Doors on villages laid out along the x axis faced away from the street. All 15 village homes now face their street.</p>
+  <p><b>Limits.</b> Checked with scripted tests and two interior screenshots. The farm interior screenshot was too dark to confirm. The elbow connector was checked for clearance and road contact only, not visually. Walking into the new counters, benches and workbenches is not tested. Building families are shop, workshop, home, barn and farm; no other families yet. No interiors beyond the shop, workshop and barn furniture. Civilian NPCs, soldier AI, simulation levels and the performance pass are not started.</p>
+  <p><b>Shop interior (0.4.0 pre-release 10).</b> The village shops now have a counter across the room from the door and two shelving units on the side walls. They are set to block movement, but walking into them is not yet tested. Checked with a scripted interior screenshot only.</p>
+  <p><b>Limits.</b> Shops are the only building type with a new interior. Workshops and farm buildings still have the earlier furniture. No town square yet. The one village without a connector is unchanged. Civilian NPCs, soldier AI, simulation levels and the performance pass are not started.</p>
+  <p><b>Vegetation (0.4.0 pre-release 9).</b> Forests now vary more. Broadleaf trees are more common at the forest edge and in some patches, and conifers dominate the dense core. Each tree has its own width and height, so silhouettes differ. Some glades are opened up inside forests. Ferns grow in the forest interior, and fallen logs lie on the ground. Trees, ferns and logs are all kept off roads, villages and connector tracks. Counts are fixed, so all three quality presets still show the same world.</p>
+  <p><b>Limits.</b> Forests are still fairly open, and the ferns and logs are small against the terrain. Not separately measured: the exact tree count after the clearings. The fairness check passes, but no hardware or phone check was done.</p>
+  <p><b>Village roads (0.4.0 pre-release 8).</b> Four of the five villages now have a dirt track from the end of their street to the nearest point of the existing road network. The track keeps at least 5 m clear of homes, and trees are kept off it. One village has no connector because no route met the clearance rule.</p>
+  <p><b>Environment still not finished.</b> Not yet built: the forest ecosystem (species mix, clearings and forest edges beyond the current tree placement), distinct interiors for shops, workshops and farm buildings, more building families beyond size, window count and colour, and a town square. Civilians, soldiers and the simulation levels are not started.</p>
+  <p><b>Limits.</b> Connectors are straight tracks, not routed roads. They are not part of the road network for driving speed or the road-distance checks. Checked with scripted tests and screenshots only.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 7 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Hills and valleys (0.4.0 pre-release 7).</b> The countryside has a second layer of rolling hills, about 4 to 5 m high, over the existing terrain. Four shallow valleys (about 3.5 m deep) lie away from the bases and villages. The village, base and outpost ground is still levelled, so buildings and gates sit on level ground. Across open ground, 95 percent of slopes are under about 14 degrees; the steepest are about 22 degrees.</p>
+  <p><b>Not in this build.</b> The valleys are shallow basins, not a river or drainage system. Roads follow the new ground, but I have not measured how steep they now get. Roads joining the villages, the forest ecosystem, civilians, soldiers and the simulation levels are still to come.</p>
+  <p><b>Limits.</b> Checked with terrain measurements, scripted tests and screenshots, not on real hardware.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 6 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Town centre (0.4.0 pre-release 6).</b> The two largest villages, Hrazany and Sedlec, now have a shop in the middle of their street: a wider building with a wider door and a dark green sign band above it. The shop is entered like a house. Village layouts changed slightly because of the extra draws, so some farmsteads moved.</p>
+  <p><b>Not in this build.</b> The shop has the same inside layout as a house and the sign has no lettering. No municipal building, café or square yet. Hills and valleys, roads joining the villages, the forest ecosystem, civilians, soldiers and the simulation levels are still to come.</p>
+  <p><b>Limits.</b> Checked with scripted tests and screenshots, not on real hardware.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 5 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Farmsteads and window variety (0.4.0 pre-release 5).</b> Three of the five villages have a farmstead on the far side of the street: a large barn, a grain silo (solid), hay bales and a dirt track to the village lane. Homes now have one to three windows per side instead of a fixed two.</p>
+  <p><b>Not in this build.</b> Two villages have no farmstead because a road runs too close. Roofs are still the same steep gable shape, with the same three tile colours and six plaster colours. Hills and valleys, a town centre, roads joining the villages, the forest ecosystem, civilians, soldiers and the simulation levels are still to come.</p>
+  <p><b>Limits.</b> The track is a straight strip, not a road-network connection. Checked with scripted tests and screenshots only.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 4 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Yards (0.4.0 pre-release 4).</b> Most village homes now have a back-yard fence on the side away from the street, and about half have a shed in one rear corner. Fences and sheds block movement, and no yard item overlaps a house.</p>
+  <p><b>Not in this build.</b> Building variety beyond size and wall colour, farms and outskirts, a town centre, hills and valleys, roads joining the villages, the forest ecosystem, civilian NPCs, soldier AI and the three simulation levels are still to come.</p>
+  <p><b>Limits.</b> The fences are simple low panels with no gates. Yard checks were run with scripted tests and one screenshot.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 3 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Villages reworked (0.4.0 pre-release 3, environment step 1).</b> Each village now has one street with a dirt lane. Homes sit on both sides of the lane with their doors facing it, instead of being scattered at random angles. Larger villages have a barn at the edge. The ground under each village is levelled to cover all of its buildings, so houses sit on the ground. Trees no longer leave a bare ring around each village: the village core and its lane and houses are kept clear, and forest can grow up to the edge.</p>
+  <p><b>Not in this build.</b> Building variety (different house families), farms and outskirts, yards and fences, town centres, hills and valleys, roads joining villages, and the forest ecosystem are still to come. Civilians and soldier AI are not started.</p>
+  <p><b>Limits.</b> The village street is not joined to the road network. Some houses share the same look: the building styles are the same as before. Checked with scripted tests and a few screenshots, not on real hardware.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 2 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Lean toggle (0.4.0 pre-release 2).</b> Controls now has a "Lean" button. HOLD (the default) leans while the key is held. TOGGLE leans on a tap and stays leaning until you tap the same key again; tapping the other side switches sides. Touch: tap LEAN L or LEAN R to start, tap the same button to stop. The choice is saved. Toggle is cleared when you go prone, sprint, jump, climb or enter a truck.</p>
+  <p><b>Not in this build.</b> Environment overhaul (Phase B) is not started in code yet; this build changes leaning only.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.4.0 PRE-RELEASE 1 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Tactical lean (0.4.0 pre-release 1).</b> Hold X to lean left and G to lean right (Q and E were already used for weapon cycle and vehicle entry, so the lean keys are different; both can be changed in Controls). Leaning moves your head and view sideways by up to 0.42 m with a small roll. It works standing, crouched and while aiming. It does not work prone, sprinting, jumping or in a truck. The lean is limited by nearby walls, sandbag and rock tops, and trees, and it stops before the camera enters solid geometry. Releasing the key, or losing focus, returns you to neutral. On touch, a LEAN L and LEAN R button sits above CROUCH and PRONE on the right.</p>
+  <p><b>Not in this build.</b> The rest of the 0.4.0 specification is not built: the environment overhaul, civilian NPCs, soldier AI, the three simulation levels and the lean toggle option. Lean is the only new system here.</p>
+  <p><b>Limits.</b> Lean clearance checks walls, buildings, rocks and trees, not other trucks. Touch lean placement was not checked on a phone screen. The lean was tested with scripted input in a headless browser, not on real hardware.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.3.83 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>One truck pad per side (0.3.83).</b> Each side now has its own pad (yellow ring). The NATO pad, about 20 m from the NATO gate, spawns the NATO truck only. The WARSAW PACT pad, about 23 m from the WARSAW PACT gate, spawns the WARSAW PACT truck only. This replaces 0.3.82, where one pad spawned both trucks. The 60 second despawn rule applies to each truck. Limits: the pad positions are defaults I chose; the 60 second timer was checked with an accelerated test; not tested on touch devices or real hardware.</p>
+  </div>
+  <div class="brand"><h2>BETA 0.3.82 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Truck spawn pad and despawn (0.3.82).</b> The trucks are no longer parked at the start. A marked pad (yellow ring) sits about 20 m from the NATO gate. Stepping onto it spawns one NATO truck and one WARSAW PACT truck. An empty truck (nobody inside) is removed after 60 seconds; a truck with a driver is never removed. The timer starts when the driver leaves. Stepping on the pad again respawns any truck that has despawned. Limits: the pad position is a default and was not chosen by you; the 60 second timer was checked with an accelerated test, not a full real-time wait; the pad has not been tested on touch devices or real hardware.</p>
+  <div class="brand"><h2>BETA 0.3.81 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Touch fixes (0.3.81).</b> On phones and tablets the minimap now sits at the top left, larger (160 px), so it no longer sits under the pause button, weapon panel or crouch button. Crouch and prone buttons moved to the left, under the minimap. Trucks can now be steered with the joystick (left and right); throttle and brake were already on the joystick.</p>
+  <div class="brand"><h2>BETA 0.3.8 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Fair graphics presets.</b> Low, Medium and High generate the same world: the same trees, bushes, grass, rocks, buildings, furniture and fog distance. Presets differ only in rendering detail: shadows and shadow resolution, pixel density, tree detail and terrain sampling. In Beta 0.3.75 the presets changed vegetation and fog, so objects could appear, disappear or move between presets. That is fixed. To keep Low playable, grass is now about half as dense as in 0.3.75 on every preset, and foliage more than about 240 m away is hidden (the fog already hides it at that range). Frame rates were measured only in a software-rendered test browser: Low ran at about 12 frames per second against about 10 for Beta 0.3.75 Low. Real hardware and Android were not tested.</p>
+  <p><b>Crouch and prone.</b> C crouches (stands back up from crouch). Z goes prone (Z again returns to crouch). Eye height is about 1.68 m standing, 1.05 m crouched and 0.45 m prone. Walking speed is 4.4 m/s standing, 2.2 m/s crouched and 1.1 m/s prone; sprinting and jumping need you standing. Touch: CROUCH and PRONE buttons. Both keys can be changed in Controls.</p>
+  <p><b>Climbing.</b> Press jump (SPACE, or JUMP on touch) next to a sandbag wall or a rock whose top is 0.2 to 1.25 m above your feet. You climb onto it, and the HUD shows "TO CLIMB". Crates, fences, tents, posts, walls and furniture cannot be climbed. You cannot climb while crouched or prone, and there is no hanging or mantling from above.</p>
+  <p><b>Trucks.</b> Two olive cargo trucks, one parked outside the NATO gate and one outside the Warsaw Pact gate. Either faction can drive either truck. The model is more detailed: grille and lamps, cab with windows and mirrors, exhaust stack, canvas cargo body with ribs, tailgate, spare wheel and dual rear wheels. In first person you sit in the cab, with the dashboard, steering wheel, seats and pillars visible. In third person you see the whole truck. The minimap shows both trucks when they are not being driven. Limits: no damage, fuel, passengers or suspension.</p>
+  <p><b>Furniture.</b> Settlement houses are furnished with more detail: a wardrobe with doors, handles and cornice; a bed with frame, mattress, pillow, blanket and headboard; a table with oilcloth and sometimes a lamp; a stove with burners and an oven door; a bookshelf with jars and books; chairs with backs; rugs and wall pictures. Wardrobes, beds, tables, stoves and shelves block movement; chairs, rugs and pictures do not. The doorway stays clear. Limits: houses are still single-storey, with no curtains, lights, electricity or upper floors. Building positions moved slightly from 0.3.75.</p>
+  <div class="brand"><h2>BETA 0.3.75 - MAIN MAP</h2></div>
+  <div class="cl">
+  <p><b>Map.</b> The battlefield is now the main map, not a training area. It is about 1,216 m square, up from about 760 m. The two bases, five villages, four outposts and roads keep the same arrangement, scaled out. NATO is in the north-west and Warsaw Pact in the south-east.</p>
+  <p><b>Forests.</b> Fourteen large forest zones with irregular edges, plus a wooded band around the map edge. Open ground lies between them. Trees keep off roads and built-up areas.</p>
+  <p><b>Minimap.</b> Top-right corner. North is up. It shows the terrain, forests, roads, bases, villages, outposts and the truck, centred on you with your heading arrow.</p>
+  <p><b>Transport truck.</b> A parked truck stands on the paved road outside the NATO gate. Stand beside it and press E (ENTER on touch) to get in, and E again to get out once it has stopped. Drive with W, A, S and D. Press V (VIEW on touch) to switch between first-person and third-person cameras while driving. The truck stops at buildings, trees, walls and people on foot. It does not carry passengers or fuel and cannot be damaged.</p>
+  <p><b>Furniture.</b> Settlement houses have a few pieces inside: wardrobe, bed, table, stove, shelf and chairs. The doorway is kept clear. Barns have hay bales.</p>
+  <p><b>Previous: Beta 0.3.5.</b> Steeper slopes softened (peak about 35%). 1980s Central and Eastern European house styling. Enterable single-storey buildings. Low, Medium and High graphics presets.</p>
+  <p><b>Terrain.</b> Hills are gentler. The steepest slope on the map is about 35% (was about 136%), and about 1.6% of the map is steeper than 20%. Settlements and outposts sit on levelled ground that blends into the hills, with no seams where levelled areas meet.</p>
+  <p><b>Buildings.</b> Settlement houses are now 1980s Central and Eastern European village buildings: plastered walls in muted cream, ochre and grey-green, a dark plinth, a steep tile roof, a brick chimney on some, small windows and a wooden door. Some have a lean-to. Barns are timber-walled with a wide door.</p>
+  <p><b>Enterable buildings.</b> Every settlement house and barn can be walked into through its door opening. Walls block movement. You can walk back out the same way. Interiors are single-storey and empty: there is no furniture, no room divisions and no upper floors or stairs.</p>
+  <p><b>Graphics.</b> Quality is now Low, Medium or High (the choice is saved). High uses more trees, grass and rocks, larger shadow maps and a longer fog distance. Presets change rendering only, not weapons, collision or resupply.</p>
+  <p><b>Known limits.</b> Roads, vegetation, lighting and ground materials are unchanged from Beta 0.3.0. Frame rates were not measured on Android or desktop. The Warsaw Pact base has short sightlines only where hills are steep beyond its clearing.</p>
+  <p><b>— Beta 0.3.0 —</b></p>
+  <p><b>Battlefield.</b> The map is about 760 m square with broader hills and valleys. NATO main base is in the north-west and Warsaw Pact main base in the south-east, about 550 m apart. Five villages (Hrazany, Lipova, Sedlec, Dubrava, Ostrov) are spread across the map, with houses, barns and fields.</p>
+  <p><b>Roads.</b> A paved main route links the NATO base, Hrazany, Sedlec and the Warsaw Pact base. Dirt roads and tracks give alternative routes through the centre and south. Roads follow the terrain. Off-road movement is still possible.</p>
+  <p><b>Outposts and resupply.</b> Four small outposts (sandbag lines, a tent and crates) sit on the approaches. Each main base and outpost has a green resupply ring. Stand still inside the ring for about a second to refill every weapon's reserve. Ammunition is unlimited.</p>
+  <p><b>— Beta 0.2.5 and earlier —</b></p>
+  <p><b>Weapons.</b> NATO: M16A2 (semi and full auto, no burst), M60E3 belt-fed machine gun, Beretta M9. Warsaw Pact: AK-74, RPK-74 magazine-fed machine gun, Makarov PM. Obsolete M16A1, XM177E2, M1911A1, AKM and AKMS removed.</p>
+  <p><b>Ballistics.</b> Rounds now travel with gravity drop and are checked along their path, so thin objects are not skipped at high speed.</p>
+  <p><b>Penetration.</b> Foliage does not stop rounds. Thin wood, fabric and sheet metal can be penetrated while the round keeps enough energy. Sandbags, rock, concrete, walls and tree trunks stop rounds.</p>
+  <p><b>Feedback.</b> Impact sparks and dust differ by material, with entry and exit marks on penetration. Rounds are drawn as short tracers.</p>
+  <p><b>Uniforms.</b> NATO: woodland-pattern BDU with a PASGT-style helmet and M1956-era pouches. Warsaw Pact: khaki-olive tunic with a stand-up collar and an SSh-68-style helmet with flared rim.</p>
+  <p><b>Fixes.</b> M60E3 and RPK-74 now fire fully automatic when fire is held. Rounds are drawn as tracers, so bullet drop is visible: about 6 cm at 100 m and 50 cm at 300 m.</p>
+  <p><b>Known limits.</b> The woodland pattern is procedural, not a reproduction of the M81 print. Helmet shapes are simplified. The Beretta M9 uses the 1911 model. The belt-fed M60E3 reload uses the magazine animation. Targets remain binary, because there is no health or damage system yet. The Warsaw Pact base sits in a basin: from its spawn, standing sightlines are about 15–60 m before hills or base structures block them.</p>
+  </div>
+  <div class="row2"><button class="mb" data-back="1">Back</button></div>
+ </section>
+ <section id="s-confirm">
+  <div class="brand"><h2>MAIN MENU</h2></div>
+  <div class="note">Leave the map? Your current loadout, ammunition and range score will be reset.</div>
+  <div class="row2"><button class="mb go" id="cYes">Confirm</button><button class="mb" id="cNo">Cancel</button></div>
+ </section>
+</div>
+<script type="module">

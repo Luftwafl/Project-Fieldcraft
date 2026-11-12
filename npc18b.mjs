@@ -1,0 +1,11 @@
+import {open} from './lib.mjs';
+const {b,p}=await open({ctx:{viewport:{width:800,height:500}}});
+await p.click('#s-home .nav [data-go=mode]');await p.click('#pveBtn');await p.click('[data-f=wp]');await p.click('#bDeploy');
+await p.waitForTimeout(200);await p.evaluate(()=>__fc.setLocked(true));
+await p.waitForFunction(()=>__fc.W.act==='ready',null,{timeout:40000});
+const r=await p.evaluate(()=>{const c=__fc.CH.all.find(o=>o.kind==='soldier');const hm=[];const T=__fc.T;
+ c.hi.root.traverse(m=>{if(m.isMesh&&m.userData.zone){const v=new T.Vector3();m.getWorldPosition(v);hm.push([m.userData.zone,+(v.y-c.g.position.y).toFixed(2)])}});
+ const zones={};for(const[z]of hm)zones[z]=(zones[z]||0)+1;
+ const head=c.hi.meshes.filter(m=>m.userData.part==='head').length,body=c.hi.meshes.filter(m=>m.userData.part==='body').length;
+ return {zones,head,body,sample:hm.slice(0,3)}});
+console.log(JSON.stringify(r));await b.close();

@@ -1,0 +1,9 @@
+{
+  "port": 8080,
+  "admins": ["Luftwafl"],
+  "servers": [
+    {"name": "Server 1 - Central Europe, Conquest", "max": 16},
+    {"name": "Server 2 - Central Europe, Conquest", "max": 16},
+    {"name": "Server 3 - Central Europe, Conquest", "max": 16}
+  ]
+}
