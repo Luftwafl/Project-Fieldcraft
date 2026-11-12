@@ -40,8 +40,8 @@ function rigLimb(R,i,H,pole){const arm=R.arms[i],fore=R.fore[i],hand=R.hand[i];
  const inv=arm.quaternion.clone().invert();
  fore.quaternion.setFromUnitVectors(r2,H.clone().sub(E).normalize().applyQuaternion(inv))}
 /* the rifle: stock on the shoulder, muzzle up when carried, level and at the cheek when aiming. Hands go to the grip and handguard */
-function rigPose(R,aim){
- const gun=R.gun,axis=(aim?new T.Vector3(-.2,.02,-.98):new T.Vector3(-.22,.42,-.88)).normalize();
+function rigPose(R,aim,low){ /* low: the lowered carry used for other players, who are not animated */
+ const gun=R.gun,axis=(aim?new T.Vector3(-.2,.02,-.98):low?new T.Vector3(-.2,-.22,-.95):new T.Vector3(-.22,.42,-.88)).normalize();
  gun.quaternion.setFromUnitVectors(new T.Vector3(0,0,-1),axis);
  const Q=gun.quaternion,contact=aim?new T.Vector3(.16,1.52,.02):new T.Vector3(.17,1.40,0);
  const A=R.anchor,origin=contact.sub(A.stock.clone().applyQuaternion(Q));
@@ -102,5 +102,5 @@ function rigBuild(team,cls){
  gb.traverse(m=>{if(m.isMesh){m.castShadow=false;m.receiveShadow=false;m.userData.part='body';meshes.push(m)}});
  const R={root,meshes,gun,anchor,arms:[byName('RightArm'),byName('LeftArm')],fore:[byName('RightForeArm'),byName('LeftForeArm')],
   hand:[byName('RightHand'),byName('LeftHand')],head:[byName('Head'),byName('Helmet')],legs:[byName('RightLeg'),byName('LeftLeg')]};
- R.pose=aim=>rigPose(R,aim);
+ R.pose=(aim,low)=>rigPose(R,aim,low);
  return R}

@@ -57,13 +57,13 @@ function netMsg(m){
 /* remote players: a model per player on the other side, moved to the last reported position */
 function netSyncAvatars(){if(!NET.on)return;const seen=new Set();
  for(const p of NET.players.values()){if(p.id===NET.id)continue;seen.add(p.id);let av=NET.avatars.get(p.id);
-  if(!av||av.team!==p.team||av.cls!==p.cls){if(av)scene.remove(av.g);const g=buildSoldier(p.team,p.cls);scene.add(g);av=NET.avatars.set(p.id,{g,team:p.team,cls:p.cls,id:p.id,x:p.x,y:p.y,z:p.z,yaw:p.yaw,alive:p.alive,name:p.name}).get(p.id)}
+  if(!av||av.team!==p.team||av.cls!==p.cls){if(av)scene.remove(av.g);const g=buildSoldier(p.team,p.cls);if(g.userData.rig)g.userData.rig.pose(false,true);scene.add(g);av=NET.avatars.set(p.id,{g,team:p.team,cls:p.cls,id:p.id,x:p.x,y:p.y,z:p.z,yaw:p.yaw,alive:p.alive,name:p.name}).get(p.id)}
   av.tx=p.x;av.ty=p.y;av.tz=p.z;av.tyaw=p.yaw;av.alive=p.alive;av.name=p.name;av.stance=p.stance;av.hp=p.hp;av.down=!!p.down}
  for(const[id,av]of NET.avatars)if(!seen.has(id)){scene.remove(av.g);NET.avatars.delete(id)}}
 function netClearAvatars(){for(const av of NET.avatars.values())scene.remove(av.g);NET.avatars.clear();NET.players=new Map()}
 function netAvatarFrame(dt){for(const av of NET.avatars.values()){if(av.tx===undefined)continue;const k=Math.min(1,dt*12);
   av.x+=(av.tx-av.x)*k;av.y+=(av.ty-av.y)*k;av.z+=(av.tz-av.z)*k;let dy=av.tyaw-av.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));av.yaw+=dy*k;
-  av.g.position.set(av.x,av.y,av.z);av.g.rotation.y=av.yaw+Math.PI;av.g.visible=av.alive;av.g.scale.y=av.stance==='crouch'?.7:1}}
+  av.g.position.set(av.x,av.y,av.z);av.g.rotation.y=av.yaw;av.g.visible=av.alive;av.g.scale.y=av.stance==='crouch'?.7:1}}
 /* per frame: send own state 10 times a second, move remote players, refresh the top bar every 0.25 s */
 function netUpdate(dt){if(!NET.on)return;NET.sendT+=dt;if(NET.sendT>=.1){NET.sendT=0;
   netSend({type:'state',x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,stance:P.stance,alive:P.hp>0,hp:P.hp,down:!!P.down,cls:sel.c})}
