@@ -1552,9 +1552,10 @@ function acquire(c){let best=null,bd=SOL_SIGHT;
   if(d<bd&&inCone(c,o.x,o.z,d)&&canSee(c,o.x,H(o.x,o.z)+1.3,o.z)){best=o;bd=d}}
  if(c.team!==CH.playerTeam&&P.hp>0){const d=Math.hypot(P.x-c.x,P.z-c.z);if(d<bd&&inCone(c,P.x,P.z,d)&&canSee(c,P.x,P.y+1.2,P.z))best='player'}
  return best}
-function spawnTracer(a,b){if(!CH.tracerPool){CH.tracerPool=[];const geo=new T.BoxGeometry(.03,.03,1),mat=new T.MeshBasicMaterial({color:0xffc070,fog:false});
+function spawnTracer(a,b){if(!CH.group)mkCharAssets();/* the group must exist before the pool is filled */
+ if(!CH.tracerPool||CH.tracerPool.length<TRC_POOL){CH.tracerPool=[];const geo=new T.BoxGeometry(.03,.03,1),mat=new T.MeshBasicMaterial({color:0xffc070,fog:false});
   for(let i=0;i<TRC_POOL;i++){const me=new T.Mesh(geo,mat);me.visible=false;me.frustumCulled=false;CH.group.add(me);CH.tracerPool.push({me,t:0})}}
- const e=CH.tracerPool[CH.tracerNext++%TRC_POOL],d=new T.Vector3().subVectors(b,a),len=d.length();
+ const e=CH.tracerPool[CH.tracerNext++%TRC_POOL];if(!e)return;const d=new T.Vector3().subVectors(b,a),len=d.length();
  e.me.position.copy(a).addScaledVector(d,.5);e.me.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),d.normalize());e.me.scale.set(1,1,Math.max(.1,len));e.me.visible=true;e.t=.12}
 function fire(c,t){const tp=tpos(t),d=Math.hypot(tp.x-c.x,tp.z-c.z);const mx=c.x+Math.sin(c.yaw)*.6,mz=c.z+Math.cos(c.yaw)*.6;
  CH.stats.shotsFired++;CH.lastShot={x:c.x,z:c.z,t:CH.clock};CH.sounds.push({x:c.x,z:c.z,team:c.team,t:CH.clock});
