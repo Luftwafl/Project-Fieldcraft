@@ -29,7 +29,7 @@ function netConnect(){if(!NET.target)return false;if(!ACC.token){setNotice('LOG 
   if(was||state==='play'){setNotice('DISCONNECTED FROM THE SERVER',4);toFaction()}};
  ws.onerror=()=>{};
  return true}
-function netLeave(quiet){const ws=NET.ws;NET.ws=null;NET.on=false;netClearAvatars();netSetAdmin(false);if(ws){try{ws.close()}catch(e){}}
+function netLeave(quiet){const ws=NET.ws;NET.ws=null;NET.on=false;netClearAvatars();netSetAdmin(false);closeChat();chatClear();if(ws){try{ws.close()}catch(e){}}
  if(!quiet){NET.mode='sp'}}
 function netSend(m){if(NET.ws&&NET.ws.readyState===1)NET.ws.send(JSON.stringify(m))}
 function netMsg(m){
@@ -45,6 +45,8 @@ function netMsg(m){
   case 'reviving':{P.reviver=m.on?m.byName:null;updDown();break}
   case 'revived':{reviveNow(m.byName);break}
   case 'notice':{if(state==='play')setNotice(m.text,2.5);break}
+  case 'chat':{chatAdd(m.name,m.team,m.text);break}
+  case 'chat':{chatAdd(m.name,m.team,m.text);break}
   case 'cqevent':{if(m.team===CH.playerTeam)NET.match.captures++;setNotice(m.name+(m.team===CH.playerTeam?' CAPTURED':' TAKEN BY THE ENEMY'),2.5);break}
   case 'matchend':{const mine=NET.players.get(NET.id)||{kills:0};const win=m.winner===CH.playerTeam;const kills=(m.players.find(p=>p.id===NET.id)||{}).kills||0;
    const caps=NET.match.captures;const money=kills*MONEY.kill+caps*MONEY.capture+(win?MONEY.winMatch:MONEY.lossMatch);

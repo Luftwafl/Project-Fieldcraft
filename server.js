@@ -122,6 +122,11 @@ wss.on('connection',(ws)=>{
     me.alive=false;me.deathReported=true;me.deaths++;const k=room.players.get(+m.by);
     if(k&&k!==me&&k.team!==me.team){k.kills++;roomSend(room,{type:'notice',text:k.name+' eliminated '+me.name})}
     setTimeout(()=>{me.deathReported=false},1500);break}
+   case 'chat':{ /* room chat: cleaned, 160 characters at most, one message per 700 ms */
+    if(me.lastChat&&Date.now()-me.lastChat<700)break;
+    const t=String(m.text==null?'':m.text).replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
+    if(t){me.lastChat=Date.now();roomSend(room,{type:'chat',name:me.name,team:me.team,text:t})}
+    break}
    case 'admin':{ /* admin actions: checked here, not in the browser */
     if(!me.admin)break;
     if(m.action==='kick'){const t=room.players.get(+m.target);if(t&&t!==me){send(t.ws,{type:'kicked',reason:'Removed by an admin'});t.ws.close()}}

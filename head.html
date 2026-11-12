@@ -171,6 +171,31 @@ body[data-s=play] #cq{display:flex}
 #fmc{background:#14180f;border:1px solid var(--ln)}
 .fm-foot{display:flex;gap:12px;align-items:center;width:100%;justify-content:space-between;font-size:11px;color:var(--mut)}
 .fm-foot .mb{min-height:36px;width:auto;padding:4px 14px}
+#inv{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.86)}
+#inv.on{display:flex}
+.inv-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:14px 16px;width:min(460px,92vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.inv-t{font-size:20px;letter-spacing:.25em;font-weight:600}
+.inv-sec{display:flex;flex-direction:column;gap:6px}
+.inv-h{font-size:11px;letter-spacing:.12em;color:var(--mut)}
+.inv-row{display:flex;gap:10px;align-items:center;font-size:13px;padding:6px 8px;border:1px solid var(--ln)}
+.inv-row.cur{border-color:#eef0dc}
+.inv-row span{color:var(--mut);width:78px;font-size:11px}
+.inv-row b{flex:1;font-weight:500}
+.inv-row i{font-style:normal;color:var(--mut)}
+.inv-guns{display:flex;flex-wrap:wrap;gap:6px}
+.inv-guns .mb{min-height:32px;width:auto;padding:4px 10px;font-size:11px}
+#tbtns{position:fixed;right:8px;top:8px;z-index:9;display:none;gap:6px;pointer-events:auto}
+body.touch #tbtns{display:flex}
+#tbtns .mb{min-height:34px;padding:4px 12px;font-size:11px}
+#chatLog{position:fixed;left:8px;bottom:150px;width:min(340px,58vw);max-height:30vh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;gap:2px;font-size:12px;text-shadow:0 1px 2px #000;pointer-events:none}
+#chatLog .cl-line{animation:clfade 1s 14s forwards}
+#chatLog.open .cl-line{animation:none;opacity:1}
+@keyframes clfade{to{opacity:0}}
+.cl-line b{color:#eef0dc;font-weight:600}
+.cl-line.nato b{color:#9fc4ff}.cl-line.wp b{color:#ff9d8a}
+#chatBox{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:10;display:none;width:min(520px,92vw)}
+#chatBox.on{display:block}
+#chatIn{width:100%;min-height:40px;background:rgba(14,16,10,.96);color:#eef0dc;border:1px solid var(--ln);padding:6px 10px;font:inherit;font-size:14px}
 #matchend{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.6)}
 #matchend.on{display:flex}
 .me-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:18px 22px;width:min(440px,92vw);display:flex;flex-direction:column;gap:10px;text-align:center}
@@ -279,6 +304,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
  <div id="cmp"><canvas id="cmpc"></canvas><i id="cmpk"></i><span id="cmpd">000</span></div>
  <div id="stat"><div id="fc"></div><div id="st1"></div><div id="stb"><i id="sta"></i></div><div id="fps"></div></div>
  <div id="ctx"></div><div id="mini"></div>
+ <div id="chatLog"></div>
  <div id="wp"><svg id="wic" viewBox="0 0 120 40"></svg><div class="wl"><span id="wn"></span><span id="wm"></span></div><div id="wsl"></div><div class="wa"><b id="wam"></b><span id="wrs"></span></div><div id="wbar"><i></i></div></div>
 </div>
 <div id="mob">
@@ -293,6 +319,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 <div id="scopeov"><div class="sc-fade"></div><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="79" fill="none" stroke="#000" stroke-width="2.5"/><circle cx="100" cy="100" r="82" fill="none" stroke="#2a2c28" stroke-width="1.5" opacity=".7"/><path d="M18 100H182M100 18V182" stroke="#050605" stroke-width=".6"/><path d="M92 100H108M100 92V108" stroke="#050605" stroke-width="1.8"/><circle cx="28" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="28" r="0.7" fill="#050605"/><circle cx="36" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="36" r="1.1" fill="#050605"/><text x="36" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="37.2" font-size="3.4" fill="#050605">16</text><circle cx="44" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="44" r="0.7" fill="#050605"/><circle cx="52" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="52" r="1.1" fill="#050605"/><text x="52" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="53.2" font-size="3.4" fill="#050605">12</text><circle cx="60" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="60" r="0.7" fill="#050605"/><circle cx="68" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="68" r="1.1" fill="#050605"/><text x="68" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="69.2" font-size="3.4" fill="#050605">8</text><circle cx="76" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="76" r="0.7" fill="#050605"/><circle cx="84" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="84" r="1.1" fill="#050605"/><text x="84" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="85.2" font-size="3.4" fill="#050605">4</text><circle cx="92" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="92" r="0.7" fill="#050605"/><circle cx="108" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="108" r="0.7" fill="#050605"/><circle cx="116" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="116" r="1.1" fill="#050605"/><text x="116" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="117.2" font-size="3.4" fill="#050605">4</text><circle cx="124" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="124" r="0.7" fill="#050605"/><circle cx="132" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="132" r="1.1" fill="#050605"/><text x="132" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="133.2" font-size="3.4" fill="#050605">8</text><circle cx="140" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="140" r="0.7" fill="#050605"/><circle cx="148" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="148" r="1.1" fill="#050605"/><text x="148" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="149.2" font-size="3.4" fill="#050605">12</text><circle cx="156" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="156" r="0.7" fill="#050605"/><circle cx="164" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="164" r="1.1" fill="#050605"/><text x="164" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="165.2" font-size="3.4" fill="#050605">16</text><circle cx="172" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="172" r="0.7" fill="#050605"/></svg></div>
 <div id="dotov"><span></span></div>
 <div id="fmap"><div class="fm-box"><canvas id="fmc"></canvas><div class="fm-foot"><span id="fmLegend"></span><button class="mb" id="fmClose">Close map</button></div></div></div>
+<div id="inv"><div class="inv-box"><div class="inv-t">INVENTORY</div><div id="invBody"></div><div class="fm-foot"><span>I or Esc closes</span><button class="mb" id="invClose">Close</button></div></div></div>
 <div id="matchend"><div class="me-box"><div class="me-t" id="meTitle"></div><div id="meWin"></div><div class="me-y" id="meYou"></div>
  <div class="row2"><button class="mb go" id="meAgain">Play again</button><button class="mb" id="meMenu">Main menu</button></div><div class="note" id="meNote"></div></div></div>
 <div id="dnScr"><div class="dn-box">
@@ -323,6 +350,8 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 </div></div>
 <div id="bleedV"></div>
 <button id="admBtn" class="mb" style="display:none">ADMIN</button>
+<div id="tbtns"><button class="mb" id="tbInv">INV</button><button class="mb" id="tbChat">CHAT</button></div>
+<div id="chatBox"><input id="chatIn" maxlength="160" autocomplete="off" placeholder="Message: Enter sends, Esc cancels"></div>
 <div id="admPanel"><div class="adm-t">ADMIN PANEL</div><div id="admList"></div><div class="row2"><button class="mb" id="admRestart">Restart match</button><button class="mb" id="admClose">Close</button></div></div>
 <div id="menu">
  <section id="s-home">
@@ -461,6 +490,10 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
   <div class="logbar"><button class="mb" data-back="1">&larr; Back</button></div>
   <div class="brand"><h2>BETA 0.5.0 - URBAN MAP</h2></div>
   <div class="cl">
+  <p><b>Chat.</b> Press T (or the CHAT button on a phone) to type a message to everyone on your server. Messages are limited to 160 characters.</p>
+  <p><b>Inventory.</b> Press I (or INV on a phone) to see your loadout, medkits and cash. Esc closes it.</p>
+  <p><b>Admin panel key.</b> Admins can press O to open the admin panel.</p>
+  <p><b>Admin guns.</b> Admins can pick any gun from the inventory. It replaces the active slot.</p>
   <p><b>New map: a 450 m urban city.</b> The battlefield is now a city with five districts: Downtown with skyscrapers and office blocks, Residential apartment blocks and courtyards, Commercial shops and car parks, Industrial warehouses and yards, and open areas of parks, bus stops and abandoned cars.</p>
   <p><b>Enterable buildings, ramps not stairs.</b> Most buildings have a ground door and open interiors with rooms and corridors. Floors connect by ramps, and the upper floors and roofs are reachable on foot.</p>
   <p><b>Windows break.</b> Each window is a hole in the wall with a glass pane in it. A bullet breaks the pane and carries on through the opening.</p>

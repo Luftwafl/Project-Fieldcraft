@@ -360,7 +360,7 @@ for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');
 $('accLogin').onclick=()=>accSubmit(false);$('accReg').onclick=()=>accSubmit(true);$('accOut').onclick=()=>accLogout(false);
 $('pveBtn').onclick=()=>{NET.mode='sp';view('faction','mode')};$('pvpBtn').onclick=()=>pvpStart();
-$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
+$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
 $('admRestart').onclick=()=>netSend({type:'admin',action:'restart'});$('meAgain').onclick=()=>{cqHide();MATCH_ON=true;deploy(false);enterPlay()};$('meMenu').onclick=()=>{cqHide();toFaction()};
 $('bDeploy').onclick=()=>{if(!classAvailable(sel.c))return;
  if(NET.mode==='mp'){if(NET.on){deploy(true);enterPlay();return}auInit();auOn();netConnect();return}
@@ -453,11 +453,11 @@ function climbTarget(){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),qx=P.x+fx*.
 function startClimb(){if(P.stance!=='stand'||!P.on||P.climb)return false;const t=climbTarget();if(!t)return false;
  P.climb={x0:P.x,z0:P.z,x1:t.ex,z1:t.ez,y0:P.y,y1:t.top,t:0,dur:.5+.45*Math.max(0,t.top-P.y)};W.ads=false;P.sprint=false;setNotice('CLIMBING',.8);return true}
 function climbStep(dt){const c=P.climb;c.t+=dt;const k=Math.min(1,c.t/c.dur),e=k*k*(3-2*k);P.x=c.x0+(c.x1-c.x0)*e;P.z=c.z0+(c.z1-c.z0)*e;P.y=c.y0+(c.y1-c.y0)*e+Math.sin(Math.PI*k)*.12;P.vx=P.vz=0;P.vy=0;P.dip=0;if(k>=1){P.climb=null;P.y=c.y1;P.on=true}}
-function act(a){if(state!=='play'||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}switch(a){case'map':toggleFullMap();break;case'use':break;case'cam':break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
+function act(a){if(state!=='play')return;if(a==='chat'){openChat();return}if(a==='admin'){openAdmin();return}if(a==='inv'){toggleInv();return}if(INV||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}switch(a){case'map':toggleFullMap();break;case'use':break;case'cam':break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
 const press=c=>{for(const a in DEFBINDS)if(codesOf(a).includes(c))act(a)};
 addEventListener('keydown',e=>{let c=e.code;if(c==='ShiftRight')c='ShiftLeft';
  if(cap.a){e.preventDefault();if(!e.repeat)capture(c);return}
- if(c==='Escape'){if(FMAP){toggleFullMap();return}if(state==='play')pause();else if(ui.v==='pause')resume();else if(ui.v&&ui.prev!==undefined&&ui.v!=='faction'&&ui.v!=='home'&&!(NET.on&&ui.v==='class'))view(ui.prev);return}
+ if(c==='Escape'){if(INV){toggleInv();return}if(FMAP){toggleFullMap();return}if(state==='play')pause();else if(ui.v==='pause')resume();else if(ui.v&&ui.prev!==undefined&&ui.v!=='faction'&&ui.v!=='home'&&!(NET.on&&ui.v==='class'))view(ui.prev);return}
  if(codesOf('pause').includes(c)){if(e.repeat)return;if(state==='play')pause();else if(state==='pause'&&ui.v==='pause')resume();return}
  if(state!=='play')return;
  if(['Space','ArrowUp','ArrowDown','Tab'].includes(c))e.preventDefault();
@@ -471,7 +471,7 @@ addEventListener('mouseup',e=>{held['Mouse'+e.button]=false});
 addEventListener('contextmenu',e=>e.preventDefault());
 const look=(dx,dy)=>{const k=1-.35*W.adsK;P.yaw-=dx*k;P.pitch=clamp(P.pitch-dy*k,-1.5,1.5);lookDX+=dx};
 addEventListener('mousemove',e=>{if(state==='play'&&locked)look(e.movementX*.0022*SET.mouse,e.movementY*.0022*SET.mouse)});
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(!locked&&state==='play'&&!touch&&!FMAP&&!P.down)pause()});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(!locked&&state==='play'&&!touch&&!uiLock()&&!P.down)pause()});
 addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
 document.addEventListener('touchmove',e=>{if(state==='play')e.preventDefault()},{passive:false});
 ['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault()));

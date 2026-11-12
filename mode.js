@@ -166,3 +166,42 @@ function drawFullMap(){if(!FMAP)return;const cv=document.getElementById('fmc');c
   if(a.human&&a.name){g.fillStyle='#f0ecd0';g.font='11px sans-serif';g.fillText(a.name,x,z-9);g.font='bold 12px sans-serif'}}
  g.save();g.translate(px(P.x),pz(P.z));g.rotate(Math.atan2(-Math.sin(P.yaw),-Math.cos(P.yaw))+Math.PI);g.fillStyle='#ffd35a';g.beginPath();g.moveTo(0,-9);g.lineTo(6,6);g.lineTo(0,3);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
  const lg=document.getElementById('fmLegend');if(lg)lg.textContent='Blue and red dots: your side. Gold ring: squad leader. Enemy positions are not shown.'}
+
+/* ---------- inventory (I), admin panel (O), room chat (T) ---------- */
+let INV=false;
+const CHAT={on:false,max:40};
+const invEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uiLock=()=>FMAP||INV||CHAT.on||document.getElementById('admPanel').classList.contains('on');
+function toggleInv(){if(!INV&&state!=='play')return;INV=!INV;document.getElementById('inv').classList.toggle('on',INV);
+ if(INV){clearInput();invRender();if(document.pointerLockElement)document.exitPointerLock()}}
+function invRender(){const L=document.getElementById('invBody');if(!L||!W||!W.slots)return;
+ let h='<div class="inv-sec"><div class="inv-h">LOADOUT</div>';
+ W.slots.forEach((s,i)=>{h+=`<div class="inv-row${i===W.cur?' cur':''}"><span>${i===0?'PRIMARY':'SIDEARM'}</span><b>${invEsc(s.def.name)}</b><i>${s.mag} / ${s.res}</i></div>`});
+ h+='</div><div class="inv-sec"><div class="inv-h">SUPPLIES</div>';
+ h+=`<div class="inv-row"><span>MEDKITS</span><b>${P.kits} of ${DMG.MAX_KITS}</b></div>`;
+ h+=`<div class="inv-row"><span>CASH</span><b>$${WALLET.cash.toLocaleString('en-US')}</b></div></div>`;
+ if(ACC.admin||NET.admin){h+='<div class="inv-sec"><div class="inv-h">ADMIN: ANY GUN, INTO THE ACTIVE SLOT</div><div class="inv-guns">';
+  for(const id in WD)h+=`<button class="mb" data-gun="${invEsc(id)}">${invEsc(WD[id].name)}</button>`;h+='</div></div>'}
+ L.innerHTML=h;
+ L.querySelectorAll('[data-gun]').forEach(b=>{b.onclick=()=>adminGive(b.dataset.gun)})}
+function adminGive(id){if(!(ACC.admin||NET.admin)||state!=='play'||!W||!W.slots)return;const d=WD[id];if(!d)return;
+ const n=(d.reserveMags||SIDE_MAGS)*d.mag;
+ W.slots[W.cur]={id,def:d,mag:d.mag,res:n,resMax:n,mi:Math.max(0,d.modes.indexOf('AUTO'))};
+ Object.assign(W,{act:'draw',t:0,ads:false,adsK:0,trig:false,dry:false});
+ if(W.cur===0)applyOptic(id);showModel(W.cur);invRender();setNotice('GOT '+d.name,1.6)}
+function openChat(){if(!NET.on||CHAT.on)return;CHAT.on=true;clearInput();
+ document.getElementById('chatBox').classList.add('on');document.getElementById('chatLog').classList.add('open');
+ if(document.pointerLockElement)document.exitPointerLock();
+ const i=document.getElementById('chatIn');i.value='';setTimeout(()=>i.focus(),0)}
+function closeChat(){if(!CHAT.on)return;CHAT.on=false;document.getElementById('chatBox').classList.remove('on');
+ document.getElementById('chatLog').classList.remove('open');document.getElementById('chatIn').blur()}
+function chatKey(e){e.stopPropagation();
+ if(e.key==='Enter'){e.preventDefault();const t=e.target.value.trim();if(t)netSend({type:'chat',text:t.slice(0,160)});e.target.value='';closeChat()}
+ else if(e.key==='Escape'){e.preventDefault();closeChat()}}
+function chatAdd(name,team,text){const L=document.getElementById('chatLog');if(!L)return;const r=document.createElement('div');
+ r.className='cl-line '+(team==='nato'?'nato':'wp');const b=document.createElement('b');b.textContent=String(name)+': ';
+ const s=document.createElement('span');s.textContent=String(text);r.append(b,s);L.appendChild(r);
+ while(L.childElementCount>CHAT.max)L.firstChild.remove()}
+function chatClear(){const L=document.getElementById('chatLog');if(L)L.textContent=''}
+function openAdmin(){if(!NET.admin){setNotice('ADMIN ONLY',1.2);return}netAdminToggle();
+ if(document.getElementById('admPanel').classList.contains('on')&&document.pointerLockElement)document.exitPointerLock()}

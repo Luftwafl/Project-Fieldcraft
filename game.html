@@ -171,6 +171,31 @@ body[data-s=play] #cq{display:flex}
 #fmc{background:#14180f;border:1px solid var(--ln)}
 .fm-foot{display:flex;gap:12px;align-items:center;width:100%;justify-content:space-between;font-size:11px;color:var(--mut)}
 .fm-foot .mb{min-height:36px;width:auto;padding:4px 14px}
+#inv{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.86)}
+#inv.on{display:flex}
+.inv-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:14px 16px;width:min(460px,92vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.inv-t{font-size:20px;letter-spacing:.25em;font-weight:600}
+.inv-sec{display:flex;flex-direction:column;gap:6px}
+.inv-h{font-size:11px;letter-spacing:.12em;color:var(--mut)}
+.inv-row{display:flex;gap:10px;align-items:center;font-size:13px;padding:6px 8px;border:1px solid var(--ln)}
+.inv-row.cur{border-color:#eef0dc}
+.inv-row span{color:var(--mut);width:78px;font-size:11px}
+.inv-row b{flex:1;font-weight:500}
+.inv-row i{font-style:normal;color:var(--mut)}
+.inv-guns{display:flex;flex-wrap:wrap;gap:6px}
+.inv-guns .mb{min-height:32px;width:auto;padding:4px 10px;font-size:11px}
+#tbtns{position:fixed;right:8px;top:8px;z-index:9;display:none;gap:6px;pointer-events:auto}
+body.touch #tbtns{display:flex}
+#tbtns .mb{min-height:34px;padding:4px 12px;font-size:11px}
+#chatLog{position:fixed;left:8px;bottom:150px;width:min(340px,58vw);max-height:30vh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;gap:2px;font-size:12px;text-shadow:0 1px 2px #000;pointer-events:none}
+#chatLog .cl-line{animation:clfade 1s 14s forwards}
+#chatLog.open .cl-line{animation:none;opacity:1}
+@keyframes clfade{to{opacity:0}}
+.cl-line b{color:#eef0dc;font-weight:600}
+.cl-line.nato b{color:#9fc4ff}.cl-line.wp b{color:#ff9d8a}
+#chatBox{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:10;display:none;width:min(520px,92vw)}
+#chatBox.on{display:block}
+#chatIn{width:100%;min-height:40px;background:rgba(14,16,10,.96);color:#eef0dc;border:1px solid var(--ln);padding:6px 10px;font:inherit;font-size:14px}
 #matchend{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.6)}
 #matchend.on{display:flex}
 .me-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:18px 22px;width:min(440px,92vw);display:flex;flex-direction:column;gap:10px;text-align:center}
@@ -279,6 +304,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
  <div id="cmp"><canvas id="cmpc"></canvas><i id="cmpk"></i><span id="cmpd">000</span></div>
  <div id="stat"><div id="fc"></div><div id="st1"></div><div id="stb"><i id="sta"></i></div><div id="fps"></div></div>
  <div id="ctx"></div><div id="mini"></div>
+ <div id="chatLog"></div>
  <div id="wp"><svg id="wic" viewBox="0 0 120 40"></svg><div class="wl"><span id="wn"></span><span id="wm"></span></div><div id="wsl"></div><div class="wa"><b id="wam"></b><span id="wrs"></span></div><div id="wbar"><i></i></div></div>
 </div>
 <div id="mob">
@@ -293,6 +319,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 <div id="scopeov"><div class="sc-fade"></div><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="79" fill="none" stroke="#000" stroke-width="2.5"/><circle cx="100" cy="100" r="82" fill="none" stroke="#2a2c28" stroke-width="1.5" opacity=".7"/><path d="M18 100H182M100 18V182" stroke="#050605" stroke-width=".6"/><path d="M92 100H108M100 92V108" stroke="#050605" stroke-width="1.8"/><circle cx="28" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="28" r="0.7" fill="#050605"/><circle cx="36" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="36" r="1.1" fill="#050605"/><text x="36" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="37.2" font-size="3.4" fill="#050605">16</text><circle cx="44" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="44" r="0.7" fill="#050605"/><circle cx="52" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="52" r="1.1" fill="#050605"/><text x="52" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="53.2" font-size="3.4" fill="#050605">12</text><circle cx="60" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="60" r="0.7" fill="#050605"/><circle cx="68" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="68" r="1.1" fill="#050605"/><text x="68" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="69.2" font-size="3.4" fill="#050605">8</text><circle cx="76" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="76" r="0.7" fill="#050605"/><circle cx="84" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="84" r="1.1" fill="#050605"/><text x="84" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="85.2" font-size="3.4" fill="#050605">4</text><circle cx="92" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="92" r="0.7" fill="#050605"/><circle cx="108" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="108" r="0.7" fill="#050605"/><circle cx="116" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="116" r="1.1" fill="#050605"/><text x="116" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="117.2" font-size="3.4" fill="#050605">4</text><circle cx="124" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="124" r="0.7" fill="#050605"/><circle cx="132" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="132" r="1.1" fill="#050605"/><text x="132" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="133.2" font-size="3.4" fill="#050605">8</text><circle cx="140" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="140" r="0.7" fill="#050605"/><circle cx="148" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="148" r="1.1" fill="#050605"/><text x="148" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="149.2" font-size="3.4" fill="#050605">12</text><circle cx="156" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="156" r="0.7" fill="#050605"/><circle cx="164" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="164" r="1.1" fill="#050605"/><text x="164" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="165.2" font-size="3.4" fill="#050605">16</text><circle cx="172" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="172" r="0.7" fill="#050605"/></svg></div>
 <div id="dotov"><span></span></div>
 <div id="fmap"><div class="fm-box"><canvas id="fmc"></canvas><div class="fm-foot"><span id="fmLegend"></span><button class="mb" id="fmClose">Close map</button></div></div></div>
+<div id="inv"><div class="inv-box"><div class="inv-t">INVENTORY</div><div id="invBody"></div><div class="fm-foot"><span>I or Esc closes</span><button class="mb" id="invClose">Close</button></div></div></div>
 <div id="matchend"><div class="me-box"><div class="me-t" id="meTitle"></div><div id="meWin"></div><div class="me-y" id="meYou"></div>
  <div class="row2"><button class="mb go" id="meAgain">Play again</button><button class="mb" id="meMenu">Main menu</button></div><div class="note" id="meNote"></div></div></div>
 <div id="dnScr"><div class="dn-box">
@@ -323,6 +350,8 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 </div></div>
 <div id="bleedV"></div>
 <button id="admBtn" class="mb" style="display:none">ADMIN</button>
+<div id="tbtns"><button class="mb" id="tbInv">INV</button><button class="mb" id="tbChat">CHAT</button></div>
+<div id="chatBox"><input id="chatIn" maxlength="160" autocomplete="off" placeholder="Message: Enter sends, Esc cancels"></div>
 <div id="admPanel"><div class="adm-t">ADMIN PANEL</div><div id="admList"></div><div class="row2"><button class="mb" id="admRestart">Restart match</button><button class="mb" id="admClose">Close</button></div></div>
 <div id="menu">
  <section id="s-home">
@@ -461,6 +490,10 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
   <div class="logbar"><button class="mb" data-back="1">&larr; Back</button></div>
   <div class="brand"><h2>BETA 0.5.0 - URBAN MAP</h2></div>
   <div class="cl">
+  <p><b>Chat.</b> Press T (or the CHAT button on a phone) to type a message to everyone on your server. Messages are limited to 160 characters.</p>
+  <p><b>Inventory.</b> Press I (or INV on a phone) to see your loadout, medkits and cash. Esc closes it.</p>
+  <p><b>Admin panel key.</b> Admins can press O to open the admin panel.</p>
+  <p><b>Admin guns.</b> Admins can pick any gun from the inventory. It replaces the active slot.</p>
   <p><b>New map: a 450 m urban city.</b> The battlefield is now a city with five districts: Downtown with skyscrapers and office blocks, Residential apartment blocks and courtyards, Commercial shops and car parks, Industrial warehouses and yards, and open areas of parks, bus stops and abandoned cars.</p>
   <p><b>Enterable buildings, ramps not stairs.</b> Most buildings have a ground door and open interiors with rooms and corridors. Floors connect by ramps, and the upper floors and roofs are reachable on foot.</p>
   <p><b>Windows break.</b> Each window is a hole in the wall with a glass pane in it. A bullet breaks the pane and carries on through the opening.</p>
@@ -625,8 +658,8 @@ const touch=matchMedia('(pointer:coarse)').matches;if(touch)document.body.classL
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 /* ============ settings (persisted, defensively validated) ============ */
 const STAGE=2;
-const DEFBINDS={fwd:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',fire:'Mouse0',ads:'Mouse2',reload:'KeyR',slot1:'Digit1',slot2:'Digit2',cycle:'KeyQ',mode:'KeyF',sprint:'ShiftLeft',jump:'Space',pause:'KeyP',use:'KeyE',cam:'KeyV',crouch:'KeyC',prone:'KeyZ',leanL:'KeyX',leanR:'KeyG',map:'KeyM',med:'KeyH'};
-const ACTS=[['fwd','Move forward'],['back','Move backward'],['left','Strafe left'],['right','Strafe right'],['fire','Fire'],['ads','Aim down sights (toggle)'],['reload','Reload'],['slot1','Primary weapon'],['slot2','Secondary weapon'],['cycle','Cycle weapon'],['mode','Fire mode'],['sprint','Sprint'],['jump','Jump / climb sandbags and rocks'],['pause','Pause'],['use','Enter / leave truck'],['cam','Truck camera (1st / 3rd person)'],['crouch','Crouch / stand up'],['prone','Prone / get up'],['leanL','Lean left'],['leanR','Lean right'],['map','Full map (hold to see allies)'],['med','Medkit (hold near a downed teammate to revive)']];
+const DEFBINDS={fwd:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',fire:'Mouse0',ads:'Mouse2',reload:'KeyR',slot1:'Digit1',slot2:'Digit2',cycle:'KeyQ',mode:'KeyF',sprint:'ShiftLeft',jump:'Space',pause:'KeyP',use:'KeyE',cam:'KeyV',crouch:'KeyC',prone:'KeyZ',leanL:'KeyX',leanR:'KeyG',map:'KeyM',med:'KeyH',inv:'KeyI',chat:'KeyT',admin:'KeyO'};
+const ACTS=[['fwd','Move forward'],['back','Move backward'],['left','Strafe left'],['right','Strafe right'],['fire','Fire'],['ads','Aim down sights (toggle)'],['reload','Reload'],['slot1','Primary weapon'],['slot2','Secondary weapon'],['cycle','Cycle weapon'],['mode','Fire mode'],['sprint','Sprint'],['jump','Jump / climb sandbags and rocks'],['pause','Pause'],['use','Enter / leave truck'],['cam','Truck camera (1st / 3rd person)'],['crouch','Crouch / stand up'],['prone','Prone / get up'],['leanL','Lean left'],['leanR','Lean right'],['map','Full map (hold to see allies)'],['med','Medkit (hold near a downed teammate to revive)'],['inv','Inventory'],['chat','Chat (type a message)'],['admin','Admin panel (admins only)']];
 const SET_KEY='fc2_set',SET_VER=2;
 const defaultSettings=()=>({v:SET_VER,q:'med',master:.8,wpn:1,fx:1,mute:false,mouse:1,touch:1,fps:false,res:1,shadow:true,view:1,leanMode:'hold',binds:Object.assign({},DEFBINDS),more:{}});
 const SET=defaultSettings();
@@ -2089,6 +2122,45 @@ function drawFullMap(){if(!FMAP)return;const cv=document.getElementById('fmc');c
   if(a.human&&a.name){g.fillStyle='#f0ecd0';g.font='11px sans-serif';g.fillText(a.name,x,z-9);g.font='bold 12px sans-serif'}}
  g.save();g.translate(px(P.x),pz(P.z));g.rotate(Math.atan2(-Math.sin(P.yaw),-Math.cos(P.yaw))+Math.PI);g.fillStyle='#ffd35a';g.beginPath();g.moveTo(0,-9);g.lineTo(6,6);g.lineTo(0,3);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
  const lg=document.getElementById('fmLegend');if(lg)lg.textContent='Blue and red dots: your side. Gold ring: squad leader. Enemy positions are not shown.'}
+
+/* ---------- inventory (I), admin panel (O), room chat (T) ---------- */
+let INV=false;
+const CHAT={on:false,max:40};
+const invEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uiLock=()=>FMAP||INV||CHAT.on||document.getElementById('admPanel').classList.contains('on');
+function toggleInv(){if(!INV&&state!=='play')return;INV=!INV;document.getElementById('inv').classList.toggle('on',INV);
+ if(INV){clearInput();invRender();if(document.pointerLockElement)document.exitPointerLock()}}
+function invRender(){const L=document.getElementById('invBody');if(!L||!W||!W.slots)return;
+ let h='<div class="inv-sec"><div class="inv-h">LOADOUT</div>';
+ W.slots.forEach((s,i)=>{h+=`<div class="inv-row${i===W.cur?' cur':''}"><span>${i===0?'PRIMARY':'SIDEARM'}</span><b>${invEsc(s.def.name)}</b><i>${s.mag} / ${s.res}</i></div>`});
+ h+='</div><div class="inv-sec"><div class="inv-h">SUPPLIES</div>';
+ h+=`<div class="inv-row"><span>MEDKITS</span><b>${P.kits} of ${DMG.MAX_KITS}</b></div>`;
+ h+=`<div class="inv-row"><span>CASH</span><b>$${WALLET.cash.toLocaleString('en-US')}</b></div></div>`;
+ if(ACC.admin||NET.admin){h+='<div class="inv-sec"><div class="inv-h">ADMIN: ANY GUN, INTO THE ACTIVE SLOT</div><div class="inv-guns">';
+  for(const id in WD)h+=`<button class="mb" data-gun="${invEsc(id)}">${invEsc(WD[id].name)}</button>`;h+='</div></div>'}
+ L.innerHTML=h;
+ L.querySelectorAll('[data-gun]').forEach(b=>{b.onclick=()=>adminGive(b.dataset.gun)})}
+function adminGive(id){if(!(ACC.admin||NET.admin)||state!=='play'||!W||!W.slots)return;const d=WD[id];if(!d)return;
+ const n=(d.reserveMags||SIDE_MAGS)*d.mag;
+ W.slots[W.cur]={id,def:d,mag:d.mag,res:n,resMax:n,mi:Math.max(0,d.modes.indexOf('AUTO'))};
+ Object.assign(W,{act:'draw',t:0,ads:false,adsK:0,trig:false,dry:false});
+ if(W.cur===0)applyOptic(id);showModel(W.cur);invRender();setNotice('GOT '+d.name,1.6)}
+function openChat(){if(!NET.on||CHAT.on)return;CHAT.on=true;clearInput();
+ document.getElementById('chatBox').classList.add('on');document.getElementById('chatLog').classList.add('open');
+ if(document.pointerLockElement)document.exitPointerLock();
+ const i=document.getElementById('chatIn');i.value='';setTimeout(()=>i.focus(),0)}
+function closeChat(){if(!CHAT.on)return;CHAT.on=false;document.getElementById('chatBox').classList.remove('on');
+ document.getElementById('chatLog').classList.remove('open');document.getElementById('chatIn').blur()}
+function chatKey(e){e.stopPropagation();
+ if(e.key==='Enter'){e.preventDefault();const t=e.target.value.trim();if(t)netSend({type:'chat',text:t.slice(0,160)});e.target.value='';closeChat()}
+ else if(e.key==='Escape'){e.preventDefault();closeChat()}}
+function chatAdd(name,team,text){const L=document.getElementById('chatLog');if(!L)return;const r=document.createElement('div');
+ r.className='cl-line '+(team==='nato'?'nato':'wp');const b=document.createElement('b');b.textContent=String(name)+': ';
+ const s=document.createElement('span');s.textContent=String(text);r.append(b,s);L.appendChild(r);
+ while(L.childElementCount>CHAT.max)L.firstChild.remove()}
+function chatClear(){const L=document.getElementById('chatLog');if(L)L.textContent=''}
+function openAdmin(){if(!NET.admin){setNotice('ADMIN ONLY',1.2);return}netAdminToggle();
+ if(document.getElementById('admPanel').classList.contains('on')&&document.pointerLockElement)document.exitPointerLock()}
 /* ---------- multiplayer client: server browser, relay of position, shots and hits, remote players, admin panel ---------- */
 const NET={mode:'sp',on:false,ws:null,url:'',room:'',roomName:'',id:null,admin:false,players:new Map(),avatars:new Map(),cq:null,sendT:0,cqT:0,
  match:{captures:0},target:null,lastNotice:0};
@@ -2120,7 +2192,7 @@ function netConnect(){if(!NET.target)return false;if(!ACC.token){setNotice('LOG 
   if(was||state==='play'){setNotice('DISCONNECTED FROM THE SERVER',4);toFaction()}};
  ws.onerror=()=>{};
  return true}
-function netLeave(quiet){const ws=NET.ws;NET.ws=null;NET.on=false;netClearAvatars();netSetAdmin(false);if(ws){try{ws.close()}catch(e){}}
+function netLeave(quiet){const ws=NET.ws;NET.ws=null;NET.on=false;netClearAvatars();netSetAdmin(false);closeChat();chatClear();if(ws){try{ws.close()}catch(e){}}
  if(!quiet){NET.mode='sp'}}
 function netSend(m){if(NET.ws&&NET.ws.readyState===1)NET.ws.send(JSON.stringify(m))}
 function netMsg(m){
@@ -2136,6 +2208,8 @@ function netMsg(m){
   case 'reviving':{P.reviver=m.on?m.byName:null;updDown();break}
   case 'revived':{reviveNow(m.byName);break}
   case 'notice':{if(state==='play')setNotice(m.text,2.5);break}
+  case 'chat':{chatAdd(m.name,m.team,m.text);break}
+  case 'chat':{chatAdd(m.name,m.team,m.text);break}
   case 'cqevent':{if(m.team===CH.playerTeam)NET.match.captures++;setNotice(m.name+(m.team===CH.playerTeam?' CAPTURED':' TAKEN BY THE ENEMY'),2.5);break}
   case 'matchend':{const mine=NET.players.get(NET.id)||{kills:0};const win=m.winner===CH.playerTeam;const kills=(m.players.find(p=>p.id===NET.id)||{}).kills||0;
    const caps=NET.match.captures;const money=kills*MONEY.kill+caps*MONEY.capture+(win?MONEY.winMatch:MONEY.lossMatch);
@@ -2621,7 +2695,7 @@ for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');
 $('accLogin').onclick=()=>accSubmit(false);$('accReg').onclick=()=>accSubmit(true);$('accOut').onclick=()=>accLogout(false);
 $('pveBtn').onclick=()=>{NET.mode='sp';view('faction','mode')};$('pvpBtn').onclick=()=>pvpStart();
-$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
+$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
 $('admRestart').onclick=()=>netSend({type:'admin',action:'restart'});$('meAgain').onclick=()=>{cqHide();MATCH_ON=true;deploy(false);enterPlay()};$('meMenu').onclick=()=>{cqHide();toFaction()};
 $('bDeploy').onclick=()=>{if(!classAvailable(sel.c))return;
  if(NET.mode==='mp'){if(NET.on){deploy(true);enterPlay();return}auInit();auOn();netConnect();return}
@@ -2714,11 +2788,11 @@ function climbTarget(){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),qx=P.x+fx*.
 function startClimb(){if(P.stance!=='stand'||!P.on||P.climb)return false;const t=climbTarget();if(!t)return false;
  P.climb={x0:P.x,z0:P.z,x1:t.ex,z1:t.ez,y0:P.y,y1:t.top,t:0,dur:.5+.45*Math.max(0,t.top-P.y)};W.ads=false;P.sprint=false;setNotice('CLIMBING',.8);return true}
 function climbStep(dt){const c=P.climb;c.t+=dt;const k=Math.min(1,c.t/c.dur),e=k*k*(3-2*k);P.x=c.x0+(c.x1-c.x0)*e;P.z=c.z0+(c.z1-c.z0)*e;P.y=c.y0+(c.y1-c.y0)*e+Math.sin(Math.PI*k)*.12;P.vx=P.vz=0;P.vy=0;P.dip=0;if(k>=1){P.climb=null;P.y=c.y1;P.on=true}}
-function act(a){if(state!=='play'||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}switch(a){case'map':toggleFullMap();break;case'use':break;case'cam':break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
+function act(a){if(state!=='play')return;if(a==='chat'){openChat();return}if(a==='admin'){openAdmin();return}if(a==='inv'){toggleInv();return}if(INV||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}switch(a){case'map':toggleFullMap();break;case'use':break;case'cam':break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
 const press=c=>{for(const a in DEFBINDS)if(codesOf(a).includes(c))act(a)};
 addEventListener('keydown',e=>{let c=e.code;if(c==='ShiftRight')c='ShiftLeft';
  if(cap.a){e.preventDefault();if(!e.repeat)capture(c);return}
- if(c==='Escape'){if(FMAP){toggleFullMap();return}if(state==='play')pause();else if(ui.v==='pause')resume();else if(ui.v&&ui.prev!==undefined&&ui.v!=='faction'&&ui.v!=='home'&&!(NET.on&&ui.v==='class'))view(ui.prev);return}
+ if(c==='Escape'){if(INV){toggleInv();return}if(FMAP){toggleFullMap();return}if(state==='play')pause();else if(ui.v==='pause')resume();else if(ui.v&&ui.prev!==undefined&&ui.v!=='faction'&&ui.v!=='home'&&!(NET.on&&ui.v==='class'))view(ui.prev);return}
  if(codesOf('pause').includes(c)){if(e.repeat)return;if(state==='play')pause();else if(state==='pause'&&ui.v==='pause')resume();return}
  if(state!=='play')return;
  if(['Space','ArrowUp','ArrowDown','Tab'].includes(c))e.preventDefault();
@@ -2732,7 +2806,7 @@ addEventListener('mouseup',e=>{held['Mouse'+e.button]=false});
 addEventListener('contextmenu',e=>e.preventDefault());
 const look=(dx,dy)=>{const k=1-.35*W.adsK;P.yaw-=dx*k;P.pitch=clamp(P.pitch-dy*k,-1.5,1.5);lookDX+=dx};
 addEventListener('mousemove',e=>{if(state==='play'&&locked)look(e.movementX*.0022*SET.mouse,e.movementY*.0022*SET.mouse)});
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(!locked&&state==='play'&&!touch&&!FMAP&&!P.down)pause()});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(!locked&&state==='play'&&!touch&&!uiLock()&&!P.down)pause()});
 addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
 document.addEventListener('touchmove',e=>{if(state==='play')e.preventDefault()},{passive:false});
 ['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault()));
