@@ -17,7 +17,7 @@ button{font:inherit;color:inherit}
 /* ---------- HUD ---------- */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:3;text-shadow:0 1px 2px rgba(0,0,0,.75)}
 body:not([data-s=play]):not([data-s=pause]) #hud,body[data-v=faction] #hud,body[data-v=class] #hud{display:none}
-#mm{position:absolute;top:10px;right:10px;width:128px;height:128px;border-radius:50%;border:1px solid rgba(226,224,190,.4);background:#14180f;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#mm{position:absolute;top:10px;right:10px;width:128px;height:128px;border-radius:50%;border:1px solid rgba(226,224,190,.4);background:#14180f;box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:auto;cursor:pointer;touch-action:manipulation}
 #cmp{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:min(400px,46vw);height:34px}
 #cmpc{width:100%;height:100%;display:block;-webkit-mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent)}
 #cmpk{position:absolute;left:50%;top:-3px;margin-left:-4px;border:4px solid transparent;border-top:6px solid var(--ink);opacity:.9}
@@ -233,7 +233,10 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 .accbox{margin:0 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:6px}
 .accbox .acc-row{display:flex;gap:8px;flex-wrap:wrap}.accbox .acc-row .txt{flex:1;min-width:150px}
 #dnScr,#dthScr{position:fixed;inset:0;z-index:13;display:none;align-items:center;justify-content:center;background:rgba(4,3,3,.82);padding:16px}
-#dthScr{background:rgba(4,3,3,.96)}
+#dthScr{background:#040303;overflow-y:auto;align-items:flex-start}
+.dth-box{margin:auto}
+@media (max-height:500px){.dth-fig{width:min(64px,20vw)}.dth-w{display:none}.dth-box .mb{min-width:160px;padding:8px}}
+@media (max-height:600px){.dth-fig{width:min(96px,28vw)}.dth-cause{font-size:24px}.dth-where{font-size:14px}.dth-box{gap:5px}.dth-stat{font-size:12px}.dn-ring{width:min(170px,44vh)}}
 #dnScr.on,#dthScr.on{display:flex}
 .dn-box,.dth-box{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(420px,94vw);text-align:center;color:#e9e5d8;text-shadow:0 1px 3px #000}
 .dn-t{font-size:clamp(26px,6vw,40px);font-weight:700;letter-spacing:.04em}

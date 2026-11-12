@@ -52,6 +52,30 @@ function rigPose(R,aim){
  rigLimb(R,0,fg,new T.Vector3(-.6,-.5,.5));    /* support hand (right): handguard */
  for(const h of R.head){h.rotation.set(aim?-.08:0,aim?-.12:0,0)} /* cheek to the stock: head turns and tips down */
 }
+/* ---------- first-person arms (0.4.5): the player's rigged arms reach the current weapon's grip and handguard ---------- */
+let FP=null;
+/* one rig for the player: only its arms are shown; the shoulders sit in camera space, the rig faces the same way as the camera (-z) */
+function fpRigBuild(team,cls){
+ if(FP)camera.remove(FP.R.root);
+ const R=rigBuild(team,cls);R.gun.visible=false;
+ for(const m of R.meshes){const ch=[];for(let o=m;o;o=o.parent)ch.push(o.name||'');
+  const arm=!ch.includes('rig-gun')&&ch.some(n=>/Arm|Hand|hand|[Ss]leeve|thumb/.test(n))&&!ch.some(n=>/Leg|thigh|calf|boot|Shin|Foot|sole/.test(n));
+  m.visible=arm}
+ R.root.position.set(0,-1.659,-.1); /* shoulders at about y -0.2, z -0.1 in camera space */
+ camera.add(R.root);FP={R}}
+const _fpG=new T.Vector3(),_fpL=new T.Vector3();
+/* per frame: grip hand on the weapon's grip, support hand on the viewmodel's support-hand point, both as camera-space targets */
+function fpRigFrame(){if(!FP||!W.slots||!W.slots.length)return;
+ const s=W.slots[W.cur],m=s&&WM[s.id];if(!m||!m.arms||!m.arms.userData.rh)return;
+ const R=FP.R,off=R.root.position;
+ camera.updateMatrixWorld();m.root.updateMatrixWorld(true);
+ const rh=m.arms.userData.rh,lo=m.arms.userData.lh;
+ const grip=camera.worldToLocal(m.root.localToWorld(_fpG.set(rh[0],rh[1],rh[2]))).sub(off);
+ const sup=camera.worldToLocal(m.lh.localToWorld(_fpL.set(lo[0],lo[1],lo[2]))).sub(off);
+ rigLimb(R,1,grip,new T.Vector3(.6,-.5,.5));  /* right hand (screen right) on the grip */
+ rigLimb(R,0,sup,new T.Vector3(-.6,-.5,.5));  /* left hand (screen left) on the handguard */
+}
+
 /* one soldier's rig: a new node tree on the faction's shared geometry, with its rifle */
 function rigBuild(team,cls){
  const D=rigDecode(team),gj=D.gltf,N=gj.nodes,objs=[],meshes=[],parent=[];

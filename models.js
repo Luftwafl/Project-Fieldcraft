@@ -14,12 +14,12 @@ const classAvailable=(cls,teamCounts={})=>!ENFORCE_CLASS_LIMITS||(teamCounts[cls
    hip/ads = spread half-angle (rad), mov = extra spread while moving, er = eye relief for ADS, hipPos = viewmodel hip position. */
 const WD={
  /* vel = muzzle velocity (m/s), mass = projectile mass (kg); energy E = 1/2 m v^2 drives penetration */
- m16a2:{name:'M16A2',cal:'5.56x45mm',kind:'rifle',mag:30,rpm:800,modes:['SEMI','AUTO'],dm:0,reload:2.6,draw:.5,hol:.3,kick:.0085,side:.0024,rec:6.5,hip:.016,ads:.0012,mov:.014,adsFov:60,er:.26,hipPos:[.17,-.2,-.38],snd:{f:4300,g:.85,len:.16,th:115},fl:1,vel:930,mass:.0040,build:()=>buildM16(false)},
- m60e3:{name:'M60E3',cal:'7.62x51mm',kind:'rifle',mag:100,rpm:550,modes:['AUTO'],dm:0,reload:6.0,draw:.7,hol:.45,kick:.016,side:.005,rec:4.5,hip:.024,ads:.0024,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2400,g:1.05,len:.22,th:70},fl:1.5,vel:850,mass:.0095,reserveMags:3,build:buildM60},
- m9:{name:'Beretta M9',cal:'9x19mm',kind:'pistol',mag:15,rpm:400,modes:['SEMI'],dm:0,reload:2.0,draw:.35,hol:.22,kick:.02,side:.005,rec:9,hip:.013,ads:.0018,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3000,g:.9,len:.12,th:140},fl:.8,vel:380,mass:.0075,build:build1911},
- ak74:{name:'AK-74',cal:'5.45x39mm',kind:'rifle',mag:30,rpm:650,modes:['SEMI','AUTO'],dm:0,reload:2.8,draw:.5,hol:.3,kick:.0125,side:.0038,rec:5.8,hip:.019,ads:.0015,mov:.016,adsFov:60,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1,len:.18,th:90},fl:1.2,vel:900,mass:.0034,build:buildAK74M},
- rpk74:{name:'RPK-74',cal:'5.45x39mm',kind:'rifle',mag:45,rpm:600,modes:['AUTO'],dm:0,reload:3.0,draw:.6,hol:.4,kick:.0125,side:.0045,rec:5,hip:.022,ads:.0017,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1.02,len:.19,th:88},fl:1.3,vel:900,mass:.0034,build:buildRPK},
- makarov:{name:'Makarov PM',cal:'9x18mm',kind:'pistol',mag:8,rpm:380,modes:['SEMI'],dm:0,reload:1.9,draw:.32,hol:.2,kick:.019,side:.0048,rec:9.5,hip:.015,ads:.002,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3500,g:.78,len:.1,th:150},fl:.7,vel:315,mass:.0063,build:buildMak}};
+ m16a2:{dk:1.35,name:'M16A2',cal:'5.56x45mm',kind:'rifle',mag:30,rpm:800,modes:['SEMI','AUTO'],dm:0,reload:2.6,draw:.5,hol:.3,kick:.0085,side:.0024,rec:6.5,hip:.016,ads:.0012,mov:.014,adsFov:60,er:.26,hipPos:[.17,-.2,-.38],snd:{f:4300,g:.85,len:.16,th:115},fl:1,vel:930,mass:.0040,build:()=>buildM16(false)},
+ m60e3:{dk:1.2,name:'M60E3',cal:'7.62x51mm',kind:'rifle',mag:100,rpm:550,modes:['AUTO'],dm:0,reload:6.0,draw:.7,hol:.45,kick:.016,side:.005,rec:4.5,hip:.024,ads:.0024,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2400,g:1.05,len:.22,th:70},fl:1.5,vel:850,mass:.0095,reserveMags:3,build:buildM60},
+ m9:{dk:1,name:'Beretta M9',cal:'9x19mm',kind:'pistol',mag:15,rpm:400,modes:['SEMI'],dm:0,reload:2.0,draw:.35,hol:.22,kick:.02,side:.005,rec:9,hip:.013,ads:.0018,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3000,g:.9,len:.12,th:140},fl:.8,vel:380,mass:.0075,build:build1911},
+ ak74:{dk:1.35,name:'AK-74',cal:'5.45x39mm',kind:'rifle',mag:30,rpm:650,modes:['SEMI','AUTO'],dm:0,reload:2.8,draw:.5,hol:.3,kick:.0125,side:.0038,rec:5.8,hip:.019,ads:.0015,mov:.016,adsFov:60,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1,len:.18,th:90},fl:1.2,vel:900,mass:.0034,build:buildAK74M},
+ rpk74:{dk:1.35,name:'RPK-74',cal:'5.45x39mm',kind:'rifle',mag:45,rpm:600,modes:['AUTO'],dm:0,reload:3.0,draw:.6,hol:.4,kick:.0125,side:.0045,rec:5,hip:.022,ads:.0017,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1.02,len:.19,th:88},fl:1.3,vel:900,mass:.0034,build:buildRPK},
+ makarov:{dk:1,name:'Makarov PM',cal:'9x18mm',kind:'pistol',mag:8,rpm:380,modes:['SEMI'],dm:0,reload:1.9,draw:.32,hol:.2,kick:.019,side:.0048,rec:9.5,hip:.015,ads:.002,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3500,g:.78,len:.1,th:150},fl:.7,vel:315,mass:.0063,build:buildMak}};
 const MODE_LABEL={SEMI:'SEMI-AUTO',AUTO:'FULL AUTO'};
 
 /* ============ first-person weapon models (procedural) ============ */
@@ -31,7 +31,7 @@ function limb(g,a,b,w,mat){const A=new T.Vector3(...a),B=new T.Vector3(...b),d=B
 /* rear ears + front post; the sight line (y = sy) is parallel to the bore, so ADS alignment is exact */
 function sightSet(g,sy,zr,zf,gap,fh){const k=GM.blk,e=gap/2+.0025;
  pm(g,bg(.005,.026,.01),k,-e,sy+.003,zr);pm(g,bg(.005,.026,.01),k,e,sy+.003,zr);pm(g,bg(gap+.01,.006,.01),k,0,sy-.011,zr);pm(g,bg(.005,fh,.005),k,0,sy-fh/2,zf)}
-function hands(root,o){const A=new T.Group();root.add(A);
+function hands(root,o){const A=new T.Group();root.add(A);A.userData={rh:o.rh,lh:o.lh};
  pm(A,bg(.056,.062,.09),GM.skin,...o.rh);limb(A,o.rh,o.rE,.085,GM.slv);
  const lh=new T.Group();A.add(lh);pm(lh,bg(.058,.05,.1),GM.skin,...o.lh);limb(lh,o.lh,o.lE,.085,GM.slv);return{arms:A,lh}}
 function magGroup(b,x,y,z,parts){const g=new T.Group();g.position.set(x,y,z);b.add(g);for(const p of parts)pm(g,...p);return g}

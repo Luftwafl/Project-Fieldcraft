@@ -109,7 +109,7 @@ function terrainCross(a,b){const fa=a.y-H(a.x,a.z),fb=b.y-H(b.x,b.z);if(!(fa>0&&
 function stepBullet(b,dt,live){
  b.t+=dt;if(b.t>MAX_LIFE||b.dist>MAX_RANGE){b.alive=false;return}
  /* trapezoidal step: average velocity over the frame is exact for constant gravity, independent of frame length */
- const segV=_bV.copy(b.v);b.v.y-=GRAV*dt;segV.add(b.v).multiplyScalar(.5*dt);const L=segV.length();if(L<=0)return;
+ const segV=_bV.copy(b.v);b.v.y-=GRAV*(b.def.dk||1)*dt;segV.add(b.v).multiplyScalar(.5*dt);const L=segV.length();if(L<=0)return;
  const d=_bD.copy(segV).normalize();let cur=_bA.copy(b.p),left=L,pen=0;
  for(let guard=0;guard<8;guard++){
   const end=new T.Vector3().copy(cur).addScaledVector(d,left);
@@ -158,7 +158,7 @@ function simulateShot(origin,dir,id,maxT){const def=WD[id];const b=spawnBullet(n
 /* ---------- spawn / loadout ---------- */
 function respawn(sp){bullets.length=0;for(const m of TRC)m.visible=false;trcUsed=0;Object.assign(P,{hp:100,x:sp.x,z:sp.z,yaw:sp.yaw,pitch:0,vx:0,vy:0,vz:0,stam:100,exh:false,on:true,dip:0,sprint:false,speed:0,sd:0,stance:'stand',eye:1.68,climb:null});P.y=H(P.x,P.z);shots=hits=0;rcP=rcY=0;dmgReset(sel.kits);
  targets.forEach(t=>{t.state=0;t.ang=0;t.hinge.rotation.x=0;t.fl=0;t.mat.color.setHex(0xffffff)})}
-function deploy(again){const F=FACTIONS[sel.f],C=CLASSES[sel.c];GM.slv.color.setHex(0xffffff);GM.slv.map=CAMO[sel.f];GM.slv.needsUpdate=true;$('clNote').textContent='';
+function deploy(again){const F=FACTIONS[sel.f],C=CLASSES[sel.c];if(RIG_SRC[sel.f]){fpRigBuild(sel.f,sel.c);for(const k in WM)WM[k].arms.visible=false}GM.slv.color.setHex(0xffffff);GM.slv.map=CAMO[sel.f];GM.slv.needsUpdate=true;$('clNote').textContent='';
  const mk=(id,mags)=>{const d=WD[id],n=(d.reserveMags||mags)*d.mag;return{id,def:d,mag:d.mag,res:n,resMax:n,mi:Math.max(0,d.modes.indexOf('AUTO'))}};
  W.slots=[mk(F.prim[sel.c],C.mags),mk(F.side,SIDE_MAGS)];W.cur=0;W.pend=0;applyOptic(F.prim[sel.c]);showModel(0);
  Object.assign(W,{queue:null,act:'draw',t:0,rs:0,ads:false,adsK:0,trig:false,dry:false,cd:0,noticeT:0});kick=0;sprintLatch=false;$('bs').classList.remove('on');
@@ -166,64 +166,15 @@ function deploy(again){const F=FACTIONS[sel.f],C=CLASSES[sel.c];GM.slv.color.set
 /* death, the downed state and revive: see damage.js */
 
 /* ---------- collision (unchanged from Stage 1) ---------- */
-function groundAt(x,z,f){let g=H(x,z);for(const b of boxes)if(b.top>g&&x>=b.x0-.05&&x<=b.x1+.05&&z>=b.z0-.05&&z<=b.z1+.05&&f>=b.top-.35)g=b.top;for(const c of circles)if(c.top!==undefined&&c.top>g&&f>=c.top-.35&&(x-c.x)**2+(z-c.z)**2<=(c.r+.1)**2)g=c.top;return g}
+/* a ramp's walking surface at (x,z), or null outside it: the ramp is a straight sloped strip of half-width hw */
+function rampY(r,x,z){const dx=r.bx-r.ax,dz=r.bz-r.az,px=x-r.ax,pz=z-r.az,L2=r.L*r.L,t=(px*dx+pz*dz)/L2;if(t<-.02||t>1.02)return null;
+ if(Math.abs(px*dz-pz*dx)/r.L>r.hw+.12)return null;return r.yA+(r.yB-r.yA)*Math.min(1,Math.max(0,t))}
+function groundAt(x,z,f){let g=H(x,z);for(const b of boxes)if(b.top>g&&x>=b.x0-.05&&x<=b.x1+.05&&z>=b.z0-.05&&z<=b.z1+.05&&f>=b.top-.35)g=b.top;for(const c of circles)if(c.top!==undefined&&c.top>g&&f>=c.top-.35&&(x-c.x)**2+(z-c.z)**2<=(c.r+.1)**2)g=c.top;
+ for(const r of RAMPS){const y=rampY(r,x,z);if(y!==null&&y>g&&f>=y-.35)g=y}return g}
 function collide(){const r0=.4;
- for(let i=0;i<TRUCKS.length;i++){const tr=TRUCKS[i];if(!tr.g||(TRK.inside&&i===TRK.i))continue;for(const k of[-1.3,1.3]){const cx=tr.x-Math.sin(tr.yaw)*k,cz=tr.z-Math.cos(tr.yaw)*k,rs=1.5+r0;const dx=P.x-cx,dz=P.z-cz,d2=dx*dx+dz*dz;if(d2<rs*rs){const d=Math.sqrt(d2)||.001;P.x=cx+dx/d*rs;P.z=cz+dz/d*rs}}}
  for(const c of circles){if(c.top!==undefined&&P.y>=c.top-.25)continue;const dx=P.x-c.x,dz=P.z-c.z,rs=r0+c.r,d2=dx*dx+dz*dz;if(d2<rs*rs){const d=Math.sqrt(d2)||.001;P.x=c.x+dx/d*rs;P.z=c.z+dz/d*rs}}
  for(const b of boxes){if(P.y>=b.top-.35||P.y+1.7<=b.bot)continue; /* overhead slabs and lintels do not block a standing player */const cx=clamp(P.x,b.x0,b.x1),cz=clamp(P.z,b.z0,b.z1),dx=P.x-cx,dz=P.z-cz,d2=dx*dx+dz*dz;
   if(d2<r0*r0){if(d2>1e-8){const d=Math.sqrt(d2);P.x=cx+dx/d*r0;P.z=cz+dz/d*r0}else{const l=P.x-b.x0,r=b.x1-P.x,t=P.z-b.z0,u=b.z1-P.z,m=Math.min(l,r,t,u);if(m===l)P.x=b.x0-r0;else if(m===r)P.x=b.x1+r0;else if(m===t)P.z=b.z0-r0;else P.z=b.z1+r0}}}}
-
-/* ---------- Beta 0.3.75 transport truck: driving, entry/exit and cameras ---------- */
-const wrapA=a=>((a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;
-function truckIdx(){if(TRK.inside)return -1;let best=-1,bd=3.6;TRUCKS.forEach((t,i)=>{if(!t.g)return;const d=Math.hypot(P.x-t.x,P.z-t.z);if(d<bd){bd=d;best=i}});return best}
-function truckNear(){return truckIdx()>=0}
-function truckVisAll(){TRUCKS.forEach((t,i)=>{if(!t.ext)return;const driven=TRK.inside&&i===TRK.i;t.ext.visible=!(driven&&!TRK.cam3);t.int.visible=driven&&!TRK.cam3})}
-function truckBlocked(x,z,yaw){const me=TRUCKS[TRK.i];const fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);const pts=[[x,z]];
- for(const a of[-2.6,2.6])for(const s of[-1.2,1.2])pts.push([x+fx*a+rx*s,z+fz*a+rz*s]);
- const others=TRUCKS.filter((t,i)=>i!==TRK.i&&t.g);
- for(const[px,pz]of pts){if(boxes.some(b=>b.top>me.y+.6&&px>b.x0-.05&&px<b.x1+.05&&pz>b.z0-.05&&pz<b.z1+.05))return true;
-  if(circles.some(c=>Math.hypot(px-c.x,pz-c.z)<c.r+.1))return true;
-  for(const o of others)for(const k of[-1.3,1.3])if(Math.hypot(px-(o.x-Math.sin(o.yaw)*k),pz-(o.z-Math.cos(o.yaw)*k))<1.7)return true}
- return false}
-function truckEnterExit(){
- if(!TRK.inside){const i=truckIdx();if(i<0)return;if(P.stance!=='stand'){setNotice('STAND UP TO ENTER THE TRUCK');return}TRK.i=i;TRK.inside=true;P.leanV=0;P.leanDir=0;P.latch=0;TRK.cam3=false;TRK.lookOff=0;TRK.lastYaw=P.yaw;W.ads=false;W.trig=false;P.vx=P.vz=0;gunRig.visible=false;truckVisAll();setNotice(TRUCKS[i].n+' TRUCK - DRIVE WITH MOVE KEYS');return}
- const T=TRUCKS[TRK.i];if(Math.abs(T.v)>1){setNotice('STOP THE TRUCK FIRST');return}
- const rx=Math.cos(T.yaw),rz=-Math.sin(T.yaw),nx=T.x+rx*2.2,nz=T.z+rz*2.2;
- P.x=nx;P.z=nz;P.y=H(nx,nz);P.vx=P.vz=0;P.vy=0;P.on=true;TRK.inside=false;T.v=0;gunRig.visible=true;truckVisAll()}
-function spawnTruck(t){if(t.g)return false;t.x=t.sx;t.z=t.sz;t.yaw=t.syaw;t.v=0;t.steer=0;t.y=H(t.x,t.z);t.idle=0;t.g=buildTruck(t);world.add(t.g);truckVisAll();return true}
-function spawnTrucks(){let n=0;for(const t of TRUCKS)if(spawnTruck(t))n++;return n}
-function despawnTruck(t){if(!t.g)return;world.remove(t.g);if(t.ext)for(const c of t.ext.children){const k=occluders.indexOf(c);if(k>=0)occluders.splice(k,1)}disposeG(t.g);t.g=null;t.ext=null;t.int=null;t.v=0;t.idle=0}
-function updateTrucks(dt){
- if(!TRK.inside)for(const g of TRIGS){const on=Math.hypot(P.x-g.x,P.z-g.z)<g.r;
-  if(on&&!g.was){const t=TRUCKS.find(u=>u.n===g.n),fresh=spawnTruck(t);if(!fresh)t.idle=0;setNotice(fresh?t.n+' TRUCK DEPLOYED':t.n+' TRUCK ALREADY ON STATION',2.2);sfx.ui()}
-  g.was=on}
- TRUCKS.forEach((t,i)=>{if(!t.g)return;if(TRK.inside&&i===TRK.i){t.idle=0;return}t.idle=(t.idle||0)+dt;if(t.idle>=TRUCK_TTL){despawnTruck(t);setNotice(t.n+' TRUCK DESPAWNED - NO DRIVER',2)}})}
-function truckFrame(dt){const T=TRUCKS[TRK.i];if(!T.g)return;
- const turn=clamp((down('left')?1:0)-(down('right')?1:0)-joy.x,-1,1),thr=clamp((down('fwd')?1:0)+Math.max(0,joy.y),0,1),brk=down('back')||joy.y<-.5;
- const road=roadDist(T.x,T.z)<6;
- const sl=Math.abs(H(T.x+1.5,T.z)-H(T.x-1.5,T.z))/3+Math.abs(H(T.x,T.z+1.5)-H(T.x,T.z-1.5))/3;
- const vmaxF=(road?14:8)*(1-clamp((sl-.2)*1.2,0,.5)),vmaxR=4; /* forward top speed (lower off-road and up slopes); reverse is slower */
- /* steering: the wheel swings toward the input at a limited rate and returns to centre when released (no instant turns) */
- const steerMax=.5,target=turn*steerMax,srate=Math.abs(turn)>.01?1.5:2.2;
- T.steer=(T.steer||0)+clamp(target-(T.steer||0),-srate*dt,srate*dt);
- /* longitudinal: drive tapers as the truck nears top speed; brake decelerates firmly; released throttle lets engine drag slow it */
- if(thr>0&&T.v<-.3)T.v=Math.min(0,T.v+7*dt);              /* throttle while reversing brakes first */
- else if(thr>0)T.v+=3.2*thr*(1-clamp(T.v/vmaxF,0,1))*dt;   /* drive */
- else if(brk){if(T.v>.3)T.v=Math.max(0,T.v-7*dt);else T.v=Math.max(-vmaxR,T.v-1.8*dt)} /* brake, then reverse */
- else{const drag=.5*dt;if(Math.abs(T.v)<=drag)T.v=0;else T.v-=Math.sign(T.v)*drag}   /* engine drag */
- if(T.v>vmaxF)T.v=Math.max(vmaxF,T.v-3*dt);
- /* bicycle model: heading changes at v*tan(steer)/wheelbase, so a stopped truck does not turn on the spot, and reversing turns the tail the other way */
- T.yaw+=T.v*Math.tan(T.steer)/3.8*dt;
- const nx=clamp(T.x-Math.sin(T.yaw)*T.v*dt,-MAP_H+6,MAP_H-6),nz=clamp(T.z-Math.cos(T.yaw)*T.v*dt,-MAP_H+6,MAP_H-6);
- if(truckBlocked(nx,nz,T.yaw)){if(Math.abs(T.v)>1)setNotice('BLOCKED');T.v=0}else{T.x=nx;T.z=nz}
- T.y=H(T.x,T.z);T.yaw=wrapA(T.yaw);T.g.position.set(T.x,T.y,T.z);T.g.rotation.y=T.yaw;
- TRK.lookOff=clamp(TRK.lookOff+wrapA(P.yaw-TRK.lastYaw),-2.6,2.6);
- P.yaw=T.yaw+TRK.lookOff;TRK.lastYaw=P.yaw;
- P.x=T.x;P.z=T.z;P.y=T.y;P.vx=P.vz=0;P.vy=0;P.on=true;P.speed=Math.abs(T.v);P.sprint=false;
- truckVisAll();gunRig.visible=false;
- if(TRK.cam3){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);camera.position.set(T.x-fx*8,T.y+3.8,T.z-fz*8)}
- else{const fx=-Math.sin(T.yaw),fz=-Math.cos(T.yaw);camera.position.set(T.x+fx*1.3,T.y+2.45,T.z+fz*1.3)}
- camera.rotation.set(clamp(P.pitch,-1.55,1.55),P.yaw,0)}
 
 /* ---------- viewmodel animation ---------- */
 const _o5=[0,0,0,0,0];
@@ -244,8 +195,8 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
  gunRig.position.set(x,y,z);gunRig.rotation.set(rx,ry,rz)}
 
 /* ---------- per-frame update ---------- */
-function update(dt){for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
- if(TRK.inside){truckFrame(dt);updateWorld(dt);return}
+function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
+ 
  let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y,st=(down('right')?1:0)-(down('left')?1:0)+joy.x;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
  const fireHeld=down('fire');
  P.sprint=(down('sprint')||sprintLatch)&&f>.3&&!P.exh&&P.stam>0&&!fireHeld&&P.stance==='stand'&&!P.climb;
@@ -271,7 +222,7 @@ function update(dt){for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  gunPose(kb);
  if(W.noticeT>0)W.noticeT-=dt;
  updateWorld(dt)}
-function updateWorld(dt){ updateChars(dt); updateBullets(dt); updateResupply(dt); updateTrucks(dt); /* world-side simulation: reusable by future AI / PvE systems */
+function updateWorld(dt){ updateChars(dt); updateBullets(dt); updateResupply(dt); /* world-side simulation: reusable by future AI / PvE systems */
  for(const t of targets){if(t.fl>0){t.fl-=dt;t.mat.color.setRGB(1,1-t.fl*3,1-t.fl*3)}else if(t.mat.color.g<1)t.mat.color.setHex(0xffffff);
   if(t.state===1){t.ang+=dt*7;if(t.ang>=Math.PI/2){t.ang=Math.PI/2;t.state=2;t.t=0}}else if(t.state===2){t.t+=dt;if(t.t>3.5)t.state=3}else if(t.state===3){t.ang-=dt*3;if(t.ang<=0){t.ang=0;t.state=0}}
   t.hinge.rotation.x=-t.ang}
@@ -296,17 +247,17 @@ function heading(){return((-P.yaw*180/Math.PI)%360+360)%360}
 /* Beta 0.3.75 minimap: a static terrain/forest/road base image (built once), plus player and object markers drawn each tick */
 const MM=document.getElementById('mm'),mmx=MM?MM.getContext('2d'):null,MM_N=608,MM_WIN=320;let mmBase=null,mmT=0;
 if(MM)MM.addEventListener('click',()=>toggleFullMap());
-function buildMinimapBase(){const S=MM_N/(MAP_H*2),c=document.createElement('canvas');c.width=c.height=MM_N;const g=c.getContext('2d'),img=g.createImageData(MM_N,MM_N),d=img.data;
- for(let j=0;j<MM_N;j++)for(let i=0;i<MM_N;i++){const x=-MAP_H+(i+.5)/S,z=-MAP_H+(j+.5)/S;const f=forestAt(x,z),h=H(x,z),hv=clamp((h+6)/22,0,1),o=(j*MM_N+i)*4;
-  const fr=f>.3?clamp((f-.3)/.7,0,1):0;
-  d[o]=Math.round(70+40*hv)*(1-fr)+22*fr;d[o+1]=Math.round(74+36*hv)*(1-fr)+52*fr;d[o+2]=Math.round(44+22*hv)*(1-fr)+18*fr;d[o+3]=255}
- g.putImageData(img,0,0);
+function buildMinimapBase(){const S=MM_N/(MAP_H*2),c=document.createElement('canvas');c.width=c.height=MM_N;const g=c.getContext('2d');
  const px=(x,z)=>[(x+MAP_H)*S,(z+MAP_H)*S];
- const style={paved:['#b8b6a6',2.6],dirt:['#9c8258',1.8],track:['#7d6847',1.2],street:['#c9bfa0',2.2]};
- for(const r of ROADS){const[col,w]=style[r.t]||style.dirt;g.strokeStyle=col;g.lineWidth=w;g.beginPath();r.p.forEach((q,k)=>{const[a,b]=px(q[0],q[1]);k?g.lineTo(a,b):g.moveTo(a,b)});g.stroke()}
- g.font='bold 11px sans-serif';g.textAlign='center';g.textBaseline='middle';
- for(const s of SETTLEMENTS){const[a,b]=px(s.x,s.z);g.fillStyle='#e8e0c0';g.beginPath();g.arc(a,b,3.2,0,7);g.fill()}
- for(const o of OUTPOSTS){const[a,b]=px(o.x,o.z);g.fillStyle='#d8d0a0';g.fillRect(a-2.5,b-2.5,5,5)}
+ /* the urban map: lawn outside, then blocks (concrete, lawn for parks and houses, sand for the bases), streets, building footprints */
+ g.fillStyle='#55683a';g.fillRect(0,0,MM_N,MM_N);
+ for(let j=0;j<BLK_C.length;j++)for(let i=0;i<BLK_C.length;i++){const d=DISTRICT[j][i],[a,b]=px(BLK_C[i]-BLK_EDGE,BLK_C[j]-BLK_EDGE),w=2*BLK_EDGE*S;
+  g.fillStyle=d==='G'||d==='H'||d==='R'?'#5f7a45':d==='N'||d==='W'?'#b0a47c':'#8f8b80';g.fillRect(a,b,w,w)}
+ g.fillStyle='#3d4044';
+ for(const s0 of STREET_C){let[a,b]=px(-186,s0-STREET_HW),[e,f]=px(186,s0+STREET_HW);g.fillRect(a,b,e-a,f-b);[a,b]=px(s0-STREET_HW,-186);[e,f]=px(s0+STREET_HW,186);g.fillRect(a,b,e-a,f-b)}
+ g.fillStyle='#d2cab4';for(const q of FOOT){const[a,b]=px(q.x0,q.z0),[e,f]=px(q.x1,q.z1);g.fillRect(a,b,e-a,f-b)}
+ g.font='bold 12px sans-serif';g.textAlign='center';g.textBaseline='middle';
+ for(const p of CQ_POINTS){const[a,b]=px(p.x,p.z);g.strokeStyle='#e0d8a8';g.lineWidth=1.5;g.beginPath();g.arc(a,b,22*S,0,7);g.stroke();g.fillStyle='#f0ecd0';g.fillText(p.name,a,b)}
  for(const k of['nato','wp']){const B=BASES[k],[a,b]=px(B.x,B.z);g.fillStyle=k==='nato'?'#3f6fc0':'#c04040';g.fillRect(a-6,b-6,12,12);g.fillStyle='#fff';g.fillText(k==='nato'?'N':'W',a,b+.5)}
  return c}
 function drawMinimap(){if(!mmx||!ready||state!=='play')return;if(!mmBase)mmBase=buildMinimapBase();const S=MM_N/(MAP_H*2),half=MM_WIN*S/2;
@@ -317,7 +268,6 @@ function drawMinimap(){if(!mmx||!ready||state!=='play')return;if(!mmBase)mmBase=
  mmx.fillStyle='#e0d8a8';mmx.font='bold 14px sans-serif';mmx.textAlign='center';mmx.textBaseline='top';mmx.fillText('N',C/2,4);
  const[px0,pz0]=[C/2,C/2];const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);
  mmx.save();mmx.translate(px0,pz0);mmx.rotate(Math.atan2(fz,fx)+Math.PI/2);mmx.fillStyle='#ffd35a';mmx.beginPath();mmx.moveTo(0,-11);mmx.lineTo(7,8);mmx.lineTo(0,4);mmx.lineTo(-7,8);mmx.closePath();mmx.fill();mmx.restore();
- TRUCKS.forEach((tr,i)=>{if(!tr.g||(TRK.inside&&i===TRK.i))return;const[ta,tb]=toM(tr.x,tr.z);mmx.save();mmx.translate(ta,tb);mmx.rotate(tr.yaw);mmx.fillStyle=i===0?'#c9bd6a':'#d0785a';mmx.fillRect(-4,-7,8,14);mmx.restore()});
  mmx.restore();
  allyDots(mmx,toM,C);mmx.strokeStyle='rgba(226,224,190,.45)';mmx.lineWidth=1.5;mmx.beginPath();mmx.arc(C/2,C/2,C/2-1,0,7);mmx.stroke()}
 function hudTick(fps){const s=curS();if(!s)return;const d=s.def,m=d.modes[s.mi];
@@ -327,12 +277,12 @@ function hudTick(fps){const s=curS();if(!s)return;const d=s.def,m=d.modes[s.mi];
  const pis=d.modes.length<2;if(E.wm._h!==pis){E.wm._h=pis;E.wm.style.display=pis?'none':'';E.bm.style.display=pis?'none':''}
  if(E.fc){setT(E.fc,FACTIONS[sel.f].name+' / '+CLASSES[sel.c].name)}
  setT(E.wsl,(W.cur===0?'PRIMARY':'SIDEARM'));
- {const bu=hudTick.bu||(hudTick.bu=$('bu'));if(bu){const lab=TRK.inside?'Leave truck':truckNear()?'Enter truck':'Truck';if(bu._l!==lab){bu._l=lab;bu.textContent=lab}}}
+ {const bu=hudTick.bu||(hudTick.bu=$('bu'));if(bu)bu.style.display='none'}
  let msg='';if(W.noticeT>0)msg=W.notice;else if(W.act==='reload')msg='RELOADING';else if(W.act==='holster'||W.act==='draw')msg='SWITCHING';
  else if(W.act==='ready'&&s.mag===0)msg=s.res>0?'MAGAZINE EMPTY - '+(touch?'TAP RELOAD':keyName(SET.binds.reload)+' TO RELOAD'):'NO AMMUNITION';
  else if(state==='play'&&resNear&&resNear.id!==resLock)msg='RESUPPLY POINT - STAND STILL';
- else if(state==='play'&&(TRK.inside||truckNear()))msg=TRK.inside?'TRUCK - '+(touch?'TAP ENTER TO LEAVE':keyName(SET.binds.use)+' TO LEAVE')+'  /  '+(touch?'TAP VIEW':keyName(SET.binds.cam)+' CAMERA'):(touch?'TAP ENTER FOR TRUCK':keyName(SET.binds.use)+' ENTER TRUCK');
- else if(state==='play'&&P.on&&!P.climb&&P.stance==='stand'&&!TRK.inside&&climbTarget())msg=(touch?'TAP JUMP':keyName(SET.binds.jump))+' TO CLIMB';
+
+ else if(state==='play'&&P.on&&!P.climb&&P.stance==='stand'&&climbTarget())msg=(touch?'TAP JUMP':keyName(SET.binds.jump))+' TO CLIMB';
  else if(state==='play'&&P.stance!=='stand')msg=P.stance==='crouch'?'CROUCHED':'PRONE';
  else if(state==='play'&&!touch&&!locked)msg='CLICK TO CAPTURE MOUSE';
  setT(E.ctx,msg);E.ctx.classList.toggle('on',!!msg);
@@ -349,7 +299,7 @@ function applyFog(){scene.fog.near=Qc.fog[0]*SET.view;scene.fog.far=Qc.fog[1]*SE
 function applyShadow(){const on=Qc.shadow>0&&SET.shadow;if(on&&Qc.shadow&&sun.shadow.mapSize.x!==Qc.shadow){sun.shadow.mapSize.set(Qc.shadow,Qc.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
  if(renderer.shadowMap.enabled!==on){renderer.shadowMap.enabled=on;scene.traverse(o=>{if(o.material)[].concat(o.material).forEach(m=>{m.needsUpdate=true})})}sun.castShadow=on}
 function setQ(n){Qn=n;Qc=Q[n];SET.q=n;saveSet();resScale=1;
- applyRes();applyFog();applyShadow();buildWorld();for(const t of TRUCKS){if(!t.g)continue;t.y=H(t.x,t.z);t.g=buildTruck(t);world.add(t.g)}truckVisAll();applyShadow()}
+ applyRes();applyFog();applyShadow();buildWorld();applyShadow()}
 addEventListener('resize',applyRes);
 
 /* ============ menus / screens ============ */
@@ -420,7 +370,7 @@ $('bDeploy').onclick=()=>{if(!classAvailable(sel.c))return;
 const AL={zoom:1,cx:0,cz:0,sel:null,last:null,lastT:0,open:(()=>{try{return localStorage.getItem('fc_ally_open')!=='0'}catch(e){return true}})()};
 let alTimer=0;
 const alTeam=()=>CH.playerTeam||FACTIONS[sel.f].base;
-const alList=()=>CH.all.filter(o=>o.kind==='soldier'&&o.team===alTeam()&&o.state!=='dead');
+const alList=()=>NET.on?[...NET.players.values()].filter(p=>p.id!==NET.id&&p.alive&&!p.down&&p.team===alTeam()):CH.all.filter(o=>o.kind==='soldier'&&o.team===alTeam()&&o.state!=='dead');
 function alSpot(c){const yaw=BASES[FACTIONS[sel.f].base].spawn.yaw;
  for(const r of[2.2,3.2])for(let k=0;k<8;k++){const a=k*Math.PI/4,x=c.x+Math.cos(a)*r,z=c.z+Math.sin(a)*r;
   if(boxes.some(b=>x>b.x0-.6&&x<b.x1+.6&&z>b.z0-.6&&z<b.z1+.6&&b.top>H(x,z)+.5))continue;
@@ -451,10 +401,8 @@ function alHit(ev){const cv=$('alMap'),r=cv.getBoundingClientRect(),mx=ev.client
  let best=null,bd=26;for(const o of alList()){const d=Math.hypot(W/2+(o.x-AL.cx)*k-mx,Hh/2+(o.z-AL.cz)*k-my);if(d<bd){bd=d;best=o}}return best}
 function spawnOnAlly(c){if(!alList().includes(c)){alRender();return}
  if(!classAvailable(sel.c)){$('alNote').textContent='That role is not available.';return}
- if(NET.on){$('alNote').textContent='Spawning on an ally is not available in online matches yet.';return}
- const at=alSpot(c);auInit();auOn();deploy(true);MATCH_ON=true;respawn(at);enterPlay()}
-$('bAlly').onclick=()=>{if(NET.on){$('clNote').textContent='Spawning on an ally is not available in online matches yet.';return}
- if(!alList().length){$('clNote').textContent='No allies in the field. Deploy at base to start a match.';return}view('ally','class')};
+  const at=alSpot(c);auInit();auOn();deploy(true);MATCH_ON=true;respawn(at);enterPlay()}
+$('bAlly').onclick=()=>{if(!alList().length){$('clNote').textContent='No allies in the field. Deploy at base to start a match.';return}view('ally','class')};
 $('alMap').onpointerdown=ev=>{const o=alHit(ev);if(!o){AL.last=null;AL.sel=null;alRender();return}
  const now=performance.now();if(AL.last===o&&now-AL.lastT<380){AL.last=null;spawnOnAlly(o);return}
  AL.last=o;AL.lastT=now;AL.sel=o;alRender()};
@@ -489,7 +437,7 @@ function leanUpdate(dt){
  /* a key press counts even if it starts and ends between two frames (pendL/pendR are set on the press itself) */
  if(SET.leanMode==='toggle'){if((pl&&!P.prevL)||P.pendL)P.latch=P.latch===-1?0:-1;if((pr&&!P.prevR)||P.pendR)P.latch=P.latch===1?0:1;want=P.latch}else want=(pl?-1:0)+(pr?1:0);
  P.prevL=pl;P.prevR=pr;P.pendL=false;P.pendR=false;
- const ok=P.on&&!P.climb&&!P.sprint&&P.stance!=='prone'&&!TRK.inside;
+ const ok=P.on&&!P.climb&&!P.sprint&&P.stance!=='prone';
  if(!ok&&SET.leanMode==='toggle')P.latch=0;
  const dir=ok?want:0;
  if(dir!==P.leanDir){P.leanDir=dir;P.leanT=0;if(dir!==0){P.leanLim=leanClear(dir);if(P.leanLim<.05)setNotice('NO ROOM TO LEAN',.8)}}
@@ -505,7 +453,7 @@ function climbTarget(){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),qx=P.x+fx*.
 function startClimb(){if(P.stance!=='stand'||!P.on||P.climb)return false;const t=climbTarget();if(!t)return false;
  P.climb={x0:P.x,z0:P.z,x1:t.ex,z1:t.ez,y0:P.y,y1:t.top,t:0,dur:.5+.45*Math.max(0,t.top-P.y)};W.ads=false;P.sprint=false;setNotice('CLIMBING',.8);return true}
 function climbStep(dt){const c=P.climb;c.t+=dt;const k=Math.min(1,c.t/c.dur),e=k*k*(3-2*k);P.x=c.x0+(c.x1-c.x0)*e;P.z=c.z0+(c.z1-c.z0)*e;P.y=c.y0+(c.y1-c.y0)*e+Math.sin(Math.PI*k)*.12;P.vx=P.vz=0;P.vy=0;P.dip=0;if(k>=1){P.climb=null;P.y=c.y1;P.on=true}}
-function act(a){if(state!=='play'||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}if(TRK.inside&&['fire','ads','reload','mode','cycle','slot1','slot2','jump','crouch','prone'].includes(a))return;switch(a){case'map':toggleFullMap();break;case'use':truckEnterExit();break;case'cam':if(TRK.inside)TRK.cam3=!TRK.cam3;break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
+function act(a){if(state!=='play'||(P.down&&a!=='map'))return;if(FMAP&&a!=='map')return;if(a==='leanL'||a==='leanR'){if(a==='leanL')P.pendL=true;else P.pendR=true}switch(a){case'map':toggleFullMap();break;case'use':break;case'cam':break;case'fire':W.trig=true;W.dry=false;break;case'ads':toggleADS();break;case'reload':startReload();break;case'slot1':selectSlot(0);break;case'slot2':selectSlot(1);break;case'cycle':cycle();break;case'mode':toggleMode();break;case'jump':jumpReq=true;break;case'crouch':setStance(P.stance==='stand'?'crouch':P.stance==='crouch'?'stand':'crouch');break;case'prone':setStance(P.stance==='prone'?'crouch':'prone');break;case'med':useKit();break}}
 const press=c=>{for(const a in DEFBINDS)if(codesOf(a).includes(c))act(a)};
 addEventListener('keydown',e=>{let c=e.code;if(c==='ShiftRight')c='ShiftLeft';
  if(cap.a){e.preventDefault();if(!e.repeat)capture(c);return}
@@ -569,7 +517,7 @@ document.getElementById('menu').addEventListener('click',e=>{if(e.target.closest
 /* Stage 3 hooks: centralised config, no duplicated state */
 const SPAWN_POINTS=[];for(const k in BASES){const b=BASES[k];SPAWN_POINTS.push({faction:k,kind:'player',...b.spawn});(b.aiSpawns||[]).forEach(p=>SPAWN_POINTS.push({faction:k,kind:'ai',...p}))}
 window.FC={STAGE,FACTIONS,CLASSES,WD,BASES,SPAWN_POINTS,player:P,weapons:W,settings:SET,get state(){return state}};
-window.__fc={dmgTick,dmgReset,useKit,reviveNow,dmgHudText,P,DMG,prevRig:()=>prev.cur&&prev.cur.userData.rig,prevCam:()=>prev.cam,WM,T,shoot,earn,hurtPlayer,playerDied,MATCH_ON:()=>MATCH_ON,ACC:()=>ACC,hitChar,cqUpdateSP,onPlayerKill,adsFovFor,truckFrame,held,CH,NET,CQS:()=>CQS,WALLET:()=>WALLET,SCOPES,buyScope,equipScope,toggleFullMap,allyMarks,netConnect,netList,netLeave,netSend,fire,findPath,segClear,aliveSoldiers,RESPAWN_DELAY,BODY_TTL,SHARE_R,INVEST_T,updateChars,spawnChars,hurtPlayer,canSee,clearPoint,damageChar,throwGrenade,SIM_FULL,SIM_RED,respawn,H,flat,Hraw,MAP_H,VILLAGE_PLANS,villageBlocked,settleCore,tHeld,leanClear,leanUpdate,get leanLim(){return P.leanLim},get boxes(){return boxes},spawnTrucks,spawnTruck,despawnTruck,updateTrucks,TRIGS,TRUCK_TTL,get occluders(){return occluders},simulateShot,bullets,HOUSES,TRK,TRUCKS,truckFrame,truckEnterExit,buildMinimapBase,forestAt,ROADS,SETTLEMENTS,OUTPOSTS,RESUPPLY,PADS,roadDist,updateResupply,get resLock(){return resLock},get resNear(){return resNear},get resT(){return resT},get TRC(){return TRC},H,get occluders(){return occluders},get OCC_CAT(){return OCC_CAT},BASES,SPAWN_POINTS,AU,get boxes(){return boxes},get circles(){return circles},get flags(){return flags},applyShadow,applyFog,applyRes,sfx,joy,tHeld,get sprintLatch(){return sprintLatch},T,camera,scene,get lastSp(){return dbgSp},get lastCap(){return dbgCap},selectSlot,get state(){return state},W,P,SET,WD,WM,sel,ui,FACTIONS,CLASSES,get hits(){return hits},get shots(){return shots},setLocked:v=>{locked=v},act,view,groundAt,collide,stepBullet,alList,AL,alSpot,spawnOnAlly,alRender,truckIdx,breakPane,down,heading,deploy,cycle,startReload,toggleADS,get kick(){return kick}};
+window.__fc={NET:()=>NET,groundAt,collide,ramps:()=>RAMPS,city:()=>CITY,footprints:()=>FOOT,cqPoints:()=>CQ_POINTS,dmgTick,dmgReset,useKit,reviveNow,dmgHudText,P,DMG,prevRig:()=>prev.cur&&prev.cur.userData.rig,prevCam:()=>prev.cam,WM,T,shoot,earn,hurtPlayer,playerDied,MATCH_ON:()=>MATCH_ON,ACC:()=>ACC,hitChar,cqUpdateSP,onPlayerKill,adsFovFor,held,CH,CQS:()=>CQS,WALLET:()=>WALLET,SCOPES,buyScope,equipScope,toggleFullMap,allyMarks,netConnect,netList,netLeave,netSend,fire,findPath,segClear,aliveSoldiers,RESPAWN_DELAY,BODY_TTL,SHARE_R,INVEST_T,updateChars,spawnChars,hurtPlayer,canSee,clearPoint,damageChar,throwGrenade,SIM_FULL,SIM_RED,respawn,H,MAP_H,tHeld,leanClear,leanUpdate,get leanLim(){return P.leanLim},get boxes(){return boxes},get occluders(){return occluders},simulateShot,bullets,HOUSES,buildMinimapBase,ROADS,RESUPPLY,roadDist,updateResupply,get resLock(){return resLock},get resNear(){return resNear},get resT(){return resT},get TRC(){return TRC},H,get occluders(){return occluders},get OCC_CAT(){return OCC_CAT},BASES,SPAWN_POINTS,AU,get boxes(){return boxes},get circles(){return circles},get flags(){return flags},applyShadow,applyFog,applyRes,sfx,joy,tHeld,get sprintLatch(){return sprintLatch},T,camera,scene,get lastSp(){return dbgSp},get lastCap(){return dbgCap},selectSlot,get state(){return state},W,P,SET,WD,WM,sel,ui,FACTIONS,CLASSES,get hits(){return hits},get shots(){return shots},setLocked:v=>{locked=v},act,view,groundAt,collide,stepBullet,alList,AL,alSpot,spawnOnAlly,alRender,breakPane,down,heading,deploy,cycle,startReload,toggleADS,get kick(){return kick}};
 setQ(Qn);ready=true;view('home','');setPreview('nato','rifleman');camera.position.set(0,1.68,16);
 $('load').classList.add('hide');requestAnimationFrame(frame);
 </script></body></html>

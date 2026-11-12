@@ -1,7 +1,4 @@
 const HOUSES=[];
-/* Beta 0.3.75 transport truck: one shared state; the model is rebuilt with the world (buildTruck) */
-const TRUCKS=[{g:null,x:0,z:0,y:0,yaw:0,v:0,n:'NATO'},{g:null,x:0,z:0,y:0,yaw:0,v:0,n:'WARSAW PACT'}];
-const TRK={inside:false,cam3:false,lookOff:0,lastYaw:0,i:0};
 /* Beta 0.3.8 fairness: the world is identical on every preset (placement, fog, collision). Presets change rendering only: shadows, resolution, geometry detail (lod) and terrain sampling grid (cell; the grid samples the same height function that collision uses). */
 const WORLD={trees:2200,bushes:320,grass:1300,rocks:90,fog:[150,520]};
 const Q={low:{...WORLD,lod:0,cell:10,shadow:0,cap:1,base:.75},
@@ -33,173 +30,11 @@ const FY=1.5;
 const sstep=(a,b,x)=>{x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)};
 function segD(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az;const t=clamp(((px-ax)*dx+(pz-az)*dz)/(dx*dx+dz*dz),0,1);return Math.hypot(px-ax-t*dx,pz-az-t*dz)}
 /* Beta 0.5.0 countryside: beveled cuboid geometry (unit size, base at y=0), the look of the test map's hills and blocks */
-const BEV_GEO=(()=>{const b=.14,hw=.5-b,s=new T.Shape();s.moveTo(-hw,-hw);s.lineTo(hw,-hw);s.lineTo(hw,hw);s.lineTo(-hw,hw);s.closePath();
- const g=new T.ExtrudeGeometry(s,{depth:1-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:1,curveSegments:1});
- g.translate(0,0,-.5);g.rotateX(-Math.PI/2);g.translate(0,.5,0);g.computeVertexNormals();return g})();
-/* hills: each site is a stack of three beveled tiers. Their height is part of the ground (H), so they are walkable. Built lazily, after the bases are scaled. */
-let HILLS=null;
-function hillList(){if(HILLS)return HILLS;HILLS=[];let s=4421;const rn=()=>(s=(s*16807)%2147483647)/2147483647;
- for(let gx=-MAP_H;gx<=MAP_H;gx+=110)for(let gz=-MAP_H;gz<=MAP_H;gz+=110){
-  if(rn()<.35)continue;const x=gx+(rn()-.5)*60,z=gz+(rn()-.5)*60,r=45+rn()*35,h=8+rn()*10;
-  const edge=Math.max(Math.abs(x),Math.abs(z));if(edge<MAP_H-170||edge>MAP_H+40)continue; /* outskirts only */
-  if(Math.hypot(x-BASES.nato.x,z-BASES.nato.z)<r+170||Math.hypot(x-BASES.wp.x,z-BASES.wp.z)<r+150)continue;
-  if(SETTLEMENTS.some(q=>Math.hypot(x-q.x,z-q.z)<r+70)||OUTPOSTS.some(q=>Math.hypot(x-q.x,z-q.z)<r+50))continue;
-  HILLS.push({x,z,h,a:rn()*Math.PI/2,r2:(r*1.15)*(r*1.15),t:[{r,h:h*.38,c:0x5f6d3d},{r:r*.62,h:h*.7,c:0x6b7a46},{r:r*.34,h,c:0x78864f}]})}
- return HILLS}
-function hillsH(x,z){let y=0;for(const h of hillList()){const dx=x-h.x,dz=z-h.z;if(dx*dx+dz*dz>h.r2)continue;const d=Math.sqrt(dx*dx+dz*dz);
- for(const t of h.t){const q=t.h*(1-sstep(t.r*.9,t.r*1.12,d));if(q>y)y=q}}return y}
-const Hraw=(x,z)=>FY+hillsH(x,z); /* Beta 0.5.0: flat ground; only the outskirts rise above it */
-/* ============ faction bases: ONE central config (terrain pad, world build, spawning, future AI) ============ */
-const faceTo=(x,z,tx,tz)=>Math.atan2(-(tx-x),-(tz-z));   /* yaw that looks from (x,z) towards (tx,tz); forward = (-sin yaw, -cos yaw) */
-const BASES={
- nato:{id:'nato',name:'NATO FORWARD BASE',x:-235,z:140,radius:26,spawn:{id:'nato-player',x:-235,z:156,yaw:0},aiSpawns:[{id:'nato-ai-1',x:-249,z:155},{id:'nato-ai-2',x:-221,z:155},{id:'nato-ai-3',x:-254,z:134},{id:'nato-ai-4',x:-216,z:133}]},
- wp:{id:'wp',name:'WARSAW PACT FORWARD BASE',x:235,z:-140,radius:22,spawn:{id:'wp-player',x:239,z:-128,yaw:0},aiSpawns:[{id:'wp-ai-1',x:228,z:-129},{id:'wp-ai-2',x:251,z:-128},{id:'wp-ai-3',x:241,z:-138},{id:'wp-ai-4',x:215,z:-147}]}};
-BASES.nato.spawn.yaw=faceTo(BASES.nato.spawn.x,BASES.nato.spawn.z,BASES.wp.x,BASES.wp.z);
-BASES.wp.spawn.yaw=faceTo(BASES.wp.spawn.x,BASES.wp.spawn.z,BASES.nato.x,BASES.nato.z);
-
-/* ============ Beta 0.3.0 map layout: expanded battlefield, settlements, outposts, roads, resupply ============ */
-const MAP_SCALE=1.6; /* Beta 0.3.75: the whole layout is scaled out from the 0.3.0 positions (same arrangement, larger map) */
-const MAP_H=Math.round(380*MAP_SCALE); /* playable map spans -MAP_H..MAP_H on X and Z */
-const SETTLEMENTS=[{id:'hrazany',name:'HRAZANY',x:-110,z:70,size:1},{id:'lipova',name:'LIPOVA',x:40,z:130,size:.7},{id:'sedlec',name:'SEDLEC',x:150,z:30,size:1.1},{id:'dubrava',name:'DUBRAVA',x:70,z:-215,size:.8},{id:'ostrov',name:'OSTROV',x:-150,z:-120,size:.9}];
-const OUTPOSTS=[{id:'op1',name:'OUTPOST 1',x:-40,z:40},{id:'op2',name:'OUTPOST 2',x:110,z:-80},{id:'op3',name:'OUTPOST 3',x:-170,z:-30},{id:'op4',name:'OUTPOST 4',x:30,z:200}];
-/* road junctions; every route that shares a junction shares these exact coordinates */
-const NODE={ngate:[BASES.nato.x+12,BASES.nato.z+34],wgate:[BASES.wp.x-30,BASES.wp.z+10],hr:[-110,70],li:[40,130],se:[150,30],du:[70,-215],os:[-150,-120],op1:[-40,40],op2:[110,-80],op3:[-170,-30],op4:[30,200]};
-const ROADS=[
- {t:'paved',p:[NODE.ngate,[-175,100],NODE.hr,NODE.op1,[30,15],[90,0],NODE.se,[190,-20],[200,-80],NODE.wgate]},
- {t:'dirt',p:[NODE.ngate,[-150,190],NODE.li,[110,60],NODE.se]},
- {t:'dirt',p:[NODE.li,NODE.op4]},
- {t:'dirt',p:[NODE.hr,[-130,10],NODE.os,[-90,-185],NODE.du,[150,-170],NODE.wgate]},
- {t:'track',p:[NODE.op1,[20,-20],[60,-60],NODE.op2,[150,-100],NODE.wgate]},
- {t:'track',p:[NODE.op3,[-185,40],[-175,100]]},
- {t:'track',p:[NODE.op3,NODE.os]},
- ...SETTLEMENTS.map(s=>({t:'street',p:[[s.x-12,s.z-2],[s.x+12,s.z+2]]}))];
-/* resupply points: unlimited ammunition, one at each main base and each outpost */
-/* Beta 0.3.75 scale-out: every hand-placed road point, junction, base, settlement and outpost is multiplied by MAP_SCALE exactly once */
-{const pts=new Set();for(const k in NODE)pts.add(NODE[k]);for(const r of ROADS)for(const pt of r.p)pts.add(pt);
- for(const pt of pts){pt[0]*=MAP_SCALE;pt[1]*=MAP_SCALE}
- for(const b of[BASES.nato,BASES.wp]){b.x*=MAP_SCALE;b.z*=MAP_SCALE;b.spawn.x*=MAP_SCALE;b.spawn.z*=MAP_SCALE;for(const a of b.aiSpawns){a.x*=MAP_SCALE;a.z*=MAP_SCALE}}
- for(const s of SETTLEMENTS){s.x*=MAP_SCALE;s.z*=MAP_SCALE}
- for(const o of OUTPOSTS){o.x*=MAP_SCALE;o.z*=MAP_SCALE}
- /* gate junctions are base-relative: recompute from the scaled bases so the roads meet the actual gates */
- NODE.ngate[0]=BASES.nato.x+12;NODE.ngate[1]=BASES.nato.z+34;NODE.wgate[0]=BASES.wp.x-30;NODE.wgate[1]=BASES.wp.z+10}
-/* truck spawn: on the paved road just outside the NATO gate */
-{const gp=NODE.ngate,wp=NODE.wgate,a=TRUCKS[0],c=TRUCKS[1];a.sx=gp[0]+4;a.sz=gp[1]+8;a.syaw=faceTo(a.sx,a.sz,NODE.hr[0],NODE.hr[1]);c.sx=wp[0]-4;c.sz=wp[1]+8;c.syaw=faceTo(c.sx,c.sz,NODE.hr[0],NODE.hr[1])}
-/* Beta 0.3.82: no truck is parked at the start. The trigger pad spawns both trucks; an unoccupied truck despawns after TRUCK_TTL seconds. */
-const TRIGS=[{x:NODE.ngate[0]-6,z:NODE.ngate[1]+20,r:3,was:false,n:'NATO'},{x:NODE.wgate[0]+12,z:NODE.wgate[1]-20,r:3,was:false,n:'WARSAW PACT'}],TRUCK_TTL=60;
-const RESUPPLY=[{id:'nato-base',name:'NATO BASE',x:BASES.nato.x,z:BASES.nato.z-4,r:3.2},{id:'wp-base',name:'WARSAW PACT BASE',x:BASES.wp.x-6,z:BASES.wp.z-4,r:3.2},...OUTPOSTS.map(o=>({id:o.id,name:o.name,x:o.x,z:o.z,r:3.2}))];
-/* ground pads: bases, settlements, outposts and the training-range corridor are levelled (each to its own height) */
-const padY=(x,z,r)=>{let t=0,n=0;for(let i=-r;i<=r;i+=2)for(let j=-r;j<=r;j+=2)if(i*i+j*j<=r*r){t+=Hraw(x+i,z+j);n++}return n?t/n:Hraw(x,z)};
-const PADS=[{x:BASES.nato.x,z:BASES.nato.z,r0:BASES.nato.radius,r1:BASES.nato.radius+60,y:FY},{x:BASES.wp.x,z:BASES.wp.z,r0:BASES.wp.radius+14,r1:BASES.wp.radius+74,y:FY},{x:BASES.wp.x,z:BASES.wp.z,r0:48,r1:100,y:FY},{seg:[0,-50,0,-140],r0:14,r1:64,y:FY}];
-/* Beta 0.4.0-pre3: village plans. One axis-aligned street per settlement; homes face the street (doors toward it), a barn sits at the edge of larger settlements, and a dirt lane runs along the street. Own seeded generator so the world's random sequence is unchanged. */
-const VILLAGE_PLANS=[];
-{let vs=7331;const vr=()=>(vs=(vs*16807)%2147483647)/2147483647;
- for(const s of SETTLEMENTS){
-  const n=s.size>.95?6:s.size>.75?4:3,alongX=vr()<.5,ux=alongX?1:0,uz=alongX?0:1,nx=alongX?0:1,nz=alongX?1:0,sp=12.5,K=n>4?3:2;
-  const plan={s,alongX,ux,uz,nx,nz,lane:null,homes:[],barn:null,ext:0};
-  const door=sd=>{const dx=-sd*nx,dz=-sd*nz;return Math.abs(dx)>Math.abs(dz)?(dx>0?3:2):(dz>0?1:0)}; /* Beta 0.4.0-pre11: the x-axis labels were swapped, so doors on that side faced away from the street */
-  for(const k of[0,1,-1,2,-2,3,-3].filter(k=>Math.abs(k)<=K))for(const sd of[1,-1]){
-   if(plan.homes.length>=n)break;
-   const along=k*sp+(vr()-.5)*1.4,setb=6.8+vr()*1.6,x=s.x+ux*along+nx*sd*setb,z=s.z+uz*along+nz*sd*setb;
-   if(roadDist(x,z)<6||plan.homes.some(h=>Math.hypot(h.x-x,h.z-z)<12))continue;
-   plan.homes.push({x,z,sd,along,rot:!alongX,doorSide:door(sd),w:6+vr()*3,d:5+vr()*2,h:2.7+vr()*.3,ti:vr(),pi:vr(),ext:vr()<.35,chimney:vr()<.8,win:1+Math.floor(vr()*3)})}
-  /* town square (Beta 0.4.0-pre11): the largest villages clear homes within 12 m of their centre and get a square there */
-  if(s.size>.95){plan.square={x:s.x,z:s.z};plan.homes=plan.homes.filter(h=>Math.hypot(h.x-s.x,h.z-s.z)>12)}
-  /* town centre (Beta 0.4.0-pre6): the largest villages replace their first home with a shop facing the street */
-  if(s.size>.95&&plan.homes.length){const f=plan.homes.shift();plan.shop={x:f.x,z:f.z,sd:f.sd,along:f.along,rot:f.rot,doorSide:f.doorSide,w:10,d:6.5,h:3.4,ti:f.ti,win:3}}
-  /* workshop (Beta 0.4.0-pre11): mid-size and large villages turn one more home into a workshop */
-  if(s.size>.75&&plan.homes.length>2){const f=plan.homes.pop();plan.workshop={x:f.x,z:f.z,sd:f.sd,along:f.along,rot:f.rot,doorSide:f.doorSide,w:9,d:6,h:3.3,ti:f.ti,pi:f.pi,win:2}}
-  /* yards (Beta 0.4.0-pre4): a back-yard fence and optionally a shed at one rear corner; dropped where a road is too close */
-  for(const hm of plan.homes){const ox=nx*hm.sd,oz=nz*hm.sd,dF=hm.d/2+4,fx=hm.x+ox*dF,fz=hm.z+oz*dF;
-   hm.fence=vr()<.6&&roadDist(fx,fz)>3?{x:fx,z:fz}:null;
-   const shedSide=vr()<.5?1:-1,dS=hm.d/2+2.2,shx=hm.x+ox*dS+ux*(hm.w/2-2)*shedSide,shz=hm.z+oz*dS+uz*(hm.w/2-2)*shedSide,wantShed=vr()<.5;
-   hm.shed=wantShed&&roadDist(shx,shz)>3?{x:shx,z:shz}:null}
-  if(s.size>.9){const along=-(K+1)*sp-6.25;plan.barn={x:s.x+ux*along-nx*15,z:s.z+uz*along-nz*15,along,rot:!alongX,doorSide:door(-1)}}
-  /* farmstead (Beta 0.4.0-pre5): barn, silo and hay on the far side of the street, joined to the lane by a track; skipped if a road is too close */
-  {const fa=(K+1)*sp+18,fs=vr()<.5?1:-1,fx=s.x+ux*fa+nx*fs*30,fz=s.z+uz*fa+nz*fs*30;
-   if(roadDist(fx,fz)>12&&roadDist(fx+ux*10,fz+uz*10)>4)plan.farm={x:fx,z:fz,along:fa,side:fs,rot:!alongX,doorSide:door(fs)}}
-  const far=[...plan.homes.map(h=>Math.hypot(h.along,8)),plan.shop?Math.hypot(plan.shop.along,8):0,plan.barn?Math.hypot(plan.barn.along,15):0,plan.farm?Math.hypot(plan.farm.x-s.x,plan.farm.z-s.z)+12:0,22];
-  plan.ext=Math.max(...far)+8;
-  const L=Math.max(...plan.homes.map(h=>Math.abs(h.along)+6),plan.barn?Math.abs(plan.barn.along)+8:0,20)+6;
-  plan.lane=[s.x-ux*L,s.z-uz*L,s.x+ux*L,s.z+uz*L];
-  /* road connector (Beta 0.4.0-pre8): from the nearer lane end to the closest point on the road network, if within 160 m */
-  {const clearOf=(c)=>{for(const h of plan.homes)if(segD(h.x,h.z,c[0],c[1],c[2],c[3])<5)return false;if(plan.shop&&segD(plan.shop.x,plan.shop.z,c[0],c[1],c[2],c[3])<8)return false;if(plan.barn&&segD(plan.barn.x,plan.barn.z,c[0],c[1],c[2],c[3])<9)return false;return true};
-   let pick=null;for(const e of[[plan.lane[0],plan.lane[1]],[plan.lane[2],plan.lane[3]]]){let best=null;for(const r of ROADS)for(let i=0;i<r.p.length-1;i++)for(let t=0;t<=1.0001;t+=.05){
-    const px=r.p[i][0]+(r.p[i+1][0]-r.p[i][0])*t,pz=r.p[i][1]+(r.p[i+1][1]-r.p[i][1])*t,d=Math.hypot(px-e[0],pz-e[1]);if(!best||d<best.d)best={d,px,pz}}
-    if(best&&best.d>3&&best.d<160){const c=[e[0],e[1],best.px,best.pz];if(clearOf(c)&&(!pick||best.d<pick.d))pick={d:best.d,c}}}
-   if(pick)plan.connector=pick.c}
-  /* elbow connector (Beta 0.4.0-pre11): if no straight track fits, a two-part track from a lane end via one bend point to the road */
-  if(!plan.connector){const clearSeg=(c)=>{for(const h of plan.homes)if(segD(h.x,h.z,c[0],c[1],c[2],c[3])<5)return false;if(plan.shop&&segD(plan.shop.x,plan.shop.z,c[0],c[1],c[2],c[3])<8)return false;if(plan.workshop&&segD(plan.workshop.x,plan.workshop.z,c[0],c[1],c[2],c[3])<8)return false;if(plan.barn&&segD(plan.barn.x,plan.barn.z,c[0],c[1],c[2],c[3])<9)return false;if(plan.farm&&segD(plan.farm.x,plan.farm.z,c[0],c[1],c[2],c[3])<10)return false;return true};
-   let pick=null;for(const e of[[plan.lane[0],plan.lane[1]],[plan.lane[2],plan.lane[3]]])for(let ang=0;ang<360;ang+=10)for(const rad of[12,18,24,32]){
-    const a=ang*Math.PI/180,mx=e[0]+Math.cos(a)*rad,mz=e[1]+Math.sin(a)*rad;
-    if(segD(mx,mz,plan.lane[0],plan.lane[1],plan.lane[2],plan.lane[3])<7||!clearSeg([e[0],e[1],mx,mz])||roadDist(mx,mz)<4)continue;
-    let best=null;for(const r of ROADS)for(let i=0;i<r.p.length-1;i++)for(let t=0;t<=1.0001;t+=.05){const px=r.p[i][0]+(r.p[i+1][0]-r.p[i][0])*t,pz=r.p[i][1]+(r.p[i+1][1]-r.p[i][1])*t,d=Math.hypot(px-mx,pz-mz);if(!best||d<best.d)best={d,px,pz}}
-    if(!best||best.d>160||best.d<3||!clearSeg([mx,mz,best.px,best.pz]))continue;
-    const tot=rad+best.d;if(!pick||tot<pick.tot)pick={tot,c1:[e[0],e[1],mx,mz],c2:[mx,mz,best.px,best.pz]}}
-   if(pick){plan.connector=pick.c1;plan.connector2=pick.c2}}
-  VILLAGE_PLANS.push(plan)}
-}
-function villageBlocked(x,z){for(const v of VILLAGE_PLANS){const[ax,az,bx,bz]=v.lane;if(segD(x,z,ax,az,bx,bz)<7)return true;if(v.connector&&segD(x,z,...v.connector)<5)return true;if(v.connector2&&segD(x,z,...v.connector2)<5)return true;for(const h of v.homes)if(Math.hypot(h.x-x,h.z-z)<9)return true;if(v.barn&&Math.hypot(v.barn.x-x,v.barn.z-z)<12)return true;if(v.farm&&Math.hypot(v.farm.x-x,v.farm.z-z)<16)return true}return false}
-function settleCore(x,z){for(const s of SETTLEMENTS)if(Math.hypot(s.x-x,s.z-z)<22*s.size+4)return true;return false}
-function flatNS(x,z){let f=0;for(const p of PADS){if(p.set)continue;const q=padF(p,x,z);if(q>f)f=q}return f}
-for(const s of SETTLEMENTS){const pv=VILLAGE_PLANS.find(v=>v.s===s),r0=Math.max(22*s.size,pv?pv.ext:0);PADS.push({x:s.x,z:s.z,r0,r1:r0+25,y:padY(s.x,s.z,22*s.size),set:true})}
-for(const o of OUTPOSTS)PADS.push({x:o.x,z:o.z,r0:9,r1:50,y:padY(o.x,o.z,9)});
-for(const g of TRIGS)PADS.push({x:g.x,z:g.z,r0:g.r+1,r1:g.r+6,y:Hraw(g.x,g.z)}); /* Beta 0.3.82: level ground under each truck trigger pad */
-const padF=(p,x,z)=>p.seg?1-sstep(p.r0,p.r1,segD(x,z,p.seg[0],p.seg[1],p.seg[2],p.seg[3])):1-sstep(p.r0,p.r1,Math.hypot(x-p.x,z-p.z));
-const flat=(x,z)=>{let f=0;for(const p of PADS){const q=padF(p,x,z);if(q>f)f=q}return f};
-const H=(x,z)=>{let f=0,sw=0,sy=0;for(const p of PADS){const q=padF(p,x,z);if(q>0){sw+=q;sy+=q*p.y;if(q>f)f=q}}const y=sw>0?sy/sw:FY;return Hraw(x,z)*(1-f)+y*f};
-/* Beta 0.3.75 forest density (0..1): large forest zones, a wooded band at the map edge, open ground between */
-const FZ=[[-260,-60,120],[250,40,130],[40,-250,110],[-60,330,130],[240,240,95],[-220,-270,120],[-20,-420,90],[380,-420,90],[-450,160,100],[120,450,100],[-430,-300,80],[460,220,90],[-120,430,85],[300,-40,70]];
-const forestAt=(x,z)=>{let f=.12+.16*Math.sin(x*.021+1)*Math.cos(z*.019+2)+.08*Math.sin(x*.047+z*.031);
- for(const[zx,zz,r]of FZ){const dx=x-zx,dz=z-zz,ang=Math.atan2(dz,dx),wob=1+.16*Math.sin(3*ang+zx*.07)+.09*Math.sin(5*ang+zz*.05+1);const v=1-sstep(r*.6,r*1.1,Math.hypot(dx,dz)/wob);if(v>f)f=v}
- return 0};
-/* Beta 0.3.75 transport truck model: olive-drab 2.5-ton style truck, nose toward -z, origin at ground level under the chassis */
-/* merge the mesh children of a group into one mesh per material (fewer draw calls) */
 const mergeMeshes=(group)=>{const kids=group.children.filter(m=>m.isMesh),bk=new Map();
  for(const m of kids){m.updateMatrix();const g=m.geometry.clone();g.applyMatrix4(m.matrix);const q=g.index?g.toNonIndexed():g;if(q!==g)g.dispose();let e=bk.get(m.material);if(!e){e={p:[],n:[]};bk.set(m.material,e)}const a=q.attributes.position.array,n=q.attributes.normal.array;for(let i=0;i<a.length;i++)e.p.push(a[i]);for(let i=0;i<n.length;i++)e.n.push(n[i]);q.dispose()}
  for(const m of kids)group.remove(m);
  const out=[];for(const[mat,e]of bk){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(e.p,3));g.setAttribute('normal',new T.Float32BufferAttribute(e.n,3));const mm=new T.Mesh(g,mat);mm.castShadow=mm.receiveShadow=true;group.add(mm);out.push(mm)}
  return out};
-function buildTruck(t){const g=new T.Group(),ext=new T.Group(),int=new T.Group();g.add(ext);g.add(int);t.ext=ext;t.int=int;
- /* Beta 0.3.8: olive 4x4 cargo truck; exterior (ext) and cab interior (int) are shown separately */
- const mO=L({color:0x4e5a3a}),mOc=L({color:0x4e5a3a,side:T.DoubleSide}),mD=L({color:0x363b2a}),mCan=L({color:0x8a8d6a}),mG=L({color:0x2a3840,side:T.DoubleSide}),mT=L({color:0x1c1c1a}),mR=L({color:0x6f6f66}),mM=L({color:0x2f2f2a}),mL=L({color:0xe8e2b0}),mRd=L({color:0x8a2a1e}),mDash=L({color:0x2b2a24}),mSeat=L({color:0x3d3a2e});
- const put=(geo,mat,x,y,z,rx,rz,occ,par)=>{const m=new T.Mesh(geo,mat);m.position.set(x,y,z);if(rx)m.rotation.x=rx;if(rz)m.rotation.z=rz;m.castShadow=m.receiveShadow=true;(par||ext).add(m);return m};
- const box=(w,h,d,mat,x,y,z,occ,rx,par)=>put(new T.BoxGeometry(w,h,d),mat,x,y,z,rx,0,occ,par);
- const cyl=(rt,rb,h,seg,mat,x,y,z,rx,rz,occ,par)=>put(new T.CylinderGeometry(rt,rb,h,seg),mat,x,y,z,rx,rz,occ,par);
- /* chassis, bonnet, grille, lamps, bumper */
- box(2.0,.22,5.6,mD,0,.78,0,true);
- box(1.9,.5,.7,mO,0,1.42,-3.1,true);
- box(1.6,.5,.06,mD,0,1.3,-3.45,false);
- for(const y of[1.18,1.3,1.42])box(1.5,.04,.05,mM,0,y,-3.49,false);
- for(const sx of[-.68,.68])cyl(.11,.11,.06,10,mL,sx,1.5,-3.46,Math.PI/2,0,false);
- box(2.3,.2,.16,mM,0,.86,-3.47,true);
- for(const sx of[-.95,.95])box(.3,.3,.04,mRd,sx,1.05,-3.47,false);
- /* cab */
- box(2.2,1.45,1.75,mOc,0,2.0,-1.9,true);
- box(2.32,.1,1.85,mO,0,2.78,-1.9,true);
- box(1.98,.78,.05,mG,0,2.22,-2.78,false,-.18);
- for(const sx of[-1,1]){box(.04,.5,1.2,mG,sx*1.11,2.35,-1.9,false);box(.06,.08,.22,mM,sx*1.12,2.0,-1.7,false);box(.04,.04,.45,mM,sx*1.25,2.45,-2.45,false);box(.05,.4,.25,mM,sx*1.3,2.45,-2.7,false)}
- /* exhaust stack, running boards, cargo body with canvas, ribs, tailgate, rear lamps */
- cyl(.06,.06,1.9,8,mM,1.02,1.9,-.9,0,0,false);cyl(.08,.08,.12,8,mM,1.02,2.88,-.9,0,0,false);
- for(const sx of[-1,1])box(.25,.08,2.4,mD,sx*1.16,.66,-.5,false);
- box(2.36,1.9,3.3,mCan,0,2.35,1.05,true);
- for(const z of[-.3,.5,1.3,2.1])box(2.4,.04,.04,mD,0,3.3,z,false);
- for(const sx of[-1,1])box(.05,.05,3.3,mD,sx*1.19,3.3,1.05,false);
- box(2.36,1.88,.04,mD,0,2.35,2.72,false);
- for(const sx of[-1,1])box(.14,.22,.05,mRd,sx*1.1,1.95,2.75,false);
- /* spare wheel on the tailgate */
- cyl(.45,.45,.28,14,mT,0,1.6,2.98,Math.PI/2,0,false);cyl(.25,.25,.3,10,mR,0,1.6,2.98,Math.PI/2,0,false);
- /* wheels: single front pair, rear dual pairs, mudguards */
- const wheel=(x,z)=>{cyl(.5,.5,.36,14,mT,x,.5,z,0,Math.PI/2,true);cyl(.26,.26,.38,10,mR,x,.5,z,0,Math.PI/2,false)};
- for(const sx of[-1,1]){wheel(sx*1.12,-2.0);wheel(sx*1.12,1.6);wheel(sx*.86,1.6);box(.6,.05,1.0,mO,sx*1.2,1.12,-2.0,false);box(.6,.05,1.3,mO,sx*1.2,1.12,1.6,false)}
- /* cab interior (first person view): dash, wheel, seats, pillars, roof lining, gear lever */
- box(2.1,.32,.42,mDash,0,1.95,-2.3,false,0,int);
- box(2.2,.04,1.75,mO,0,2.76,-1.9,false,0,int);
- for(const sx of[-1,1])box(.07,1.5,.07,mO,sx*1.06,2.05,-2.2,false,0,int);
- put(new T.TorusGeometry(.19,.018,6,16),mM,-.42,1.92,-2.02,-.55,0,false,int);
- for(const sx of[-.45,.45]){box(.5,.14,.5,mSeat,sx,1.36,-1.78,false,0,int);box(.5,.6,.12,mSeat,sx,1.72,-1.44,false,0,int)}
- cyl(.02,.02,.4,6,mM,-.1,1.6,-1.85,-.2,0,false,int);
- mergeMeshes(int);mergeMeshes(ext);occluders.push(...ext.children);
- g.position.set(t.x,t.y,t.z);g.rotation.y=t.yaw;return g}
 function roadDist(x,z){let best=1e9;for(const r of ROADS){const p=r.p;for(let i=0;i<p.length-1;i++){const d=segD(x,z,p[i][0],p[i][1],p[i+1][0],p[i+1][1]);if(d<best)best=d}}return best}
 function densify(pl,step){const out=[];for(let i=0;i<pl.length-1;i++){const a=pl[i],c=pl[i+1],n=Math.max(1,Math.ceil(Math.hypot(c[0]-a[0],c[1]-a[1])/step));for(let k=0;k<n;k++){const t=k/n;out.push([a[0]+(c[0]-a[0])*t,a[1]+(c[1]-a[1])*t])}}out.push(pl[pl.length-1]);return out}
 /* snapshot / shift: lets the NATO outpost be authored at the origin and moved to its base centre */
@@ -226,245 +61,246 @@ const tileIM=(im)=>{const n=im.count,m4=new T.Matrix4(),pv=new T.Vector3(),col=n
   t.castShadow=im.castShadow;t.receiveShadow=im.receiveShadow;t.computeBoundingSphere();world.add(t);out.push(t)}
  return out};
 
+/* ============ Beta 0.5.1 urban conquest map: 450 m x 450 m, flat ground, one connected city ============
+   Street grid: 12 m streets on the lines STREET_C; 48 m blocks between them. Each block has a district letter (DISTRICT).
+   Buildings are enterable: a ground door on the street side and floors joined by RAMPS (never stairs).
+   Multi-storey buildings share one ramp shaft: the ramps alternate between the two lanes of the shaft and switch back on each landing. */
+const MAP_H=225;
+const STREET_C=[-180,-120,-60,0,60,120,180],STREET_HW=6,BLK_C=[-150,-90,-30,30,90,150],BLK_EDGE=24;
+/* district per block. Rows: z from north (row 0) to south (row 5). Columns: x from west to east.
+   N NATO compound  W Warsaw Pact compound  D downtown  M mid-rise offices  R residential  H houses
+   S shops  K commercial  I industrial  G park */
+const DISTRICT=['NHSMII','HRMDIK','RRDDKS','RRDDMS','HRGMSK','GHKSHW'];
+const faceTo=(x,z,tx,tz)=>Math.atan2(-(tx-x),-(tz-z));   /* yaw that looks from (x,z) towards (tx,tz); forward = (-sin yaw, -cos yaw) */
+const BASES={
+ nato:{id:'nato',name:'NATO FORWARD BASE',x:-150,z:-150,radius:26,spawn:{id:'nato-player',x:-158,z:-158,yaw:0},aiSpawns:[{id:'nato-ai-1',x:-164,z:-162},{id:'nato-ai-2',x:-156,z:-164},{id:'nato-ai-3',x:-164,z:-154},{id:'nato-ai-4',x:-150,z:-166}]},
+ wp:{id:'wp',name:'WARSAW PACT FORWARD BASE',x:150,z:150,radius:26,spawn:{id:'wp-player',x:158,z:158,yaw:0},aiSpawns:[{id:'wp-ai-1',x:164,z:162},{id:'wp-ai-2',x:156,z:164},{id:'wp-ai-3',x:164,z:154},{id:'wp-ai-4',x:150,z:166}]}};
+BASES.nato.spawn.yaw=faceTo(BASES.nato.spawn.x,BASES.nato.spawn.z,BASES.wp.x,BASES.wp.z);
+BASES.wp.spawn.yaw=faceTo(BASES.wp.spawn.x,BASES.wp.spawn.z,BASES.nato.x,BASES.nato.z);
+/* building constants: a storey is FH tall; a ramp climbs one storey over RUN metres (slope 0.28, about 16 degrees) */
+const FH=3.4,WT=.3,RUN=12,LAND=2.5,SHW=6.6,LZ=RUN+2*LAND,DW=1.8,DH=2.2,RW=1.65,ROOM_D=7,CORR_W=2.1,ROOM_DW=1.2;
+const ROTK=[(x,z)=>[x,z],(x,z)=>[-z,x],(x,z)=>[-x,-z],(x,z)=>[z,-x]],DIRK={N:0,E:1,S:2,W:3};
+const H=(x,z)=>FY;   /* the city is flat: every surface is at FY unless a box or a ramp is higher */
+const Hraw=H,flat=()=>0,forestAt=()=>0,villageBlocked=()=>false,settleCore=()=>false;
+const BOX1=new T.BoxGeometry(1,1,1),CANOPY_G=new T.IcosahedronGeometry(1,0),TRUNK_G=new T.CylinderGeometry(.14,.18,1,6);
+/* per-map state, rebuilt by buildWorld (TRIGS, RESUPPLY, ROADS and VILLAGE_PLANS need the conquest points, so they are set there) */
+let MAT=null,RAMPS=[],FOOT=[],TREES=[],BUSH=[],POST=[],CARS=[],CITY=[],RESUPPLY=[],ROADS=[],VILLAGE_PLANS=[];
+const post=o=>POST.push(o);
+/* a box in world space: col:false = visual only, occ:false = bullets pass through it */
+function addBox(x,y,z,w,h,d,mat,o){const m=new T.Mesh(BOX1,mat);m.scale.set(w,h,d);m.position.set(x,y+h/2,z);m.castShadow=o?.cast??true;m.receiveShadow=true;world.add(m);
+ if(!o||o.col!==false)boxes.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,top:y+h,bot:y});
+ if(!o||o.occ!==false)occluders.push(m);return m}
+/* a flat ground patch: walkable, no collision, no shadow casting */
+function patch(x0,x1,z0,z1,mat,y){const m=new T.Mesh(BOX1,mat);m.scale.set(x1-x0,.04,z1-z0);m.position.set((x0+x1)/2,y,(z0+z1)/2);m.receiveShadow=true;world.add(m);return m}
+function mkMats(){const tw=cvs(128,128,(g,w,h)=>{g.fillStyle='#dcdcdc';g.fillRect(0,0,w,h);g.fillStyle='#0003';for(let y=0;y<h;y+=16)g.fillRect(0,y,w,2);speckle(g,w,h,700,.3)},2,1);
+ return{walls:[0x8d8a80,0x9a948a,0x7e7b72,0xa39f92,0x6f6d66].map(c=>L({color:c,map:tw})),
+  slab:L({color:0x5e5c57}),roof:L({color:0x3f4246}),inner:L({color:0xc6c1b0}),
+  wood:L({color:0x8a6840}),dark:L({color:0x2a3138}),glass:L({color:0x4f6e7c}),ramp:L({color:0x8f8c84,side:T.DoubleSide}),
+  metal:L({color:0x4b514b}),asph:L({color:0x3d4044}),conc:L({color:0x9b988f}),lawn:L({color:0x5e7242}),
+  sand:L({color:0xb0a47c}),tent:L({color:0x6c6f48,side:T.DoubleSide}),barrier:L({color:0x8e8b82}),
+  cars:[0x6a2e2a,0x2e4a6a,0xb8b4a6,0x3a3f36,0x7a7a6e,0x8a6a2a].map(c=>L({color:c})),
+  bark:L({color:0x4a3a2a}),leaf:L({color:0x4f6a34}),leaf2:L({color:0x5d7a3c}),
+  blk:L({color:0x1d1f21}),yel:L({color:0xd8b84a}),white:L({color:0xdedbd0}),
+  container:[0x7a3b2a,0x2f4f6a,0x5a6a3a].map(c=>L({color:c})),path:L({color:0xb5b1a4})}}
+/* a ramp: a sloped slab whose top face is exactly the walking surface (no boxes are used for slopes) */
+function wedgeGeo(A,B,hw,th){const dx=B.x-A.x,dz=B.z-A.z,L0=Math.hypot(dx,dz)||1,px=-dz/L0*hw,pz=dx/L0*hw;
+ const a0=[A.x-px,A.y,A.z-pz],a1=[A.x+px,A.y,A.z+pz],b0=[B.x-px,B.y,B.z-pz],b1=[B.x+px,B.y,B.z+pz];
+ const dn=p=>[p[0],p[1]-th,p[2]],a0d=dn(a0),a1d=dn(a1),b0d=dn(b0),b1d=dn(b1),v=[];
+ const tri=(p,q,r)=>v.push(...p,...q,...r);
+ tri(a0,a1,b1);tri(a0,b1,b0);tri(a0d,b1d,a1d);tri(a0d,b0d,b1d);
+ tri(a0,b0,b0d);tri(a0,b0d,a0d);tri(a1,b1d,b1);tri(a1,a1d,b1d);
+ tri(a0,a0d,a1);tri(a1,a0d,a1d);tri(b0,b1,b0d);tri(b1,b1d,b0d);
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.computeVertexNormals();return g}
+/* one building. The local frame has its ground door on the north side (-z); ROTK turns it to face the street.
+   sp: {W (x), D (z), S storeys, kind, fh, k (door side), wi (wall colour), roof, shaft} */
+function bld(cx,cz,sp){
+ const W=sp.W,D=sp.D,S=sp.S,fh=sp.fh||FH,R=ROTK[sp.k],mat=MAT.walls[sp.wi||0];
+ const wp=(lx,lz)=>{const r=R(lx,lz);return[cx+r[0],cz+r[1]]};
+ const bx=(lx0,lx1,lz0,lz1,y0,y1,m,o)=>{const a=wp(lx0,lz0),b=wp(lx1,lz1),x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),z0=Math.min(a[1],b[1]),z1=Math.max(a[1],b[1]);return addBox((x0+x1)/2,y0,(z0+z1)/2,x1-x0,y1-y0,z1-z0,m,o)};
+ const Y0=FY,top=Y0+fh*S,Lv=f=>Y0+fh*f,DL=-D/2,DR=D/2;
+ const shaft=!!sp.shaft&&S>=2;
+ const sxB=W/2-WT,sxA=sxB-SHW,mid=sxA+SHW/2,zMin=DL+WT,zMax=zMin+LZ,zLo=zMin+LAND,zHi=zMax-LAND;
+ const doorX=shaft?mid:0,NR=shaft?S-1+(sp.roof?1:0):0;
+ {const a=wp(-W/2,DL),b=wp(W/2,DR);FOOT.push({x0:Math.min(a[0],b[0]),x1:Math.max(a[0],b[0]),z0:Math.min(a[1],b[1]),z1:Math.max(a[1],b[1]),kind:sp.kind})}
+ /* outer walls: collision is the full wall (boxes only, no mesh). The visible wall is cut by a hole at each window and at the ground door, and each window hole holds a glass pane that bullets break */
+ const cbx=(lx0,lx1,lz0,lz1,y0,y1)=>{const p=wp(lx0,lz0),q=wp(lx1,lz1);boxes.push({x0:Math.min(p[0],q[0]),x1:Math.max(p[0],q[0]),z0:Math.min(p[1],q[1]),z1:Math.max(p[1],q[1]),top:y1,bot:y0})};
+ cbx(-W/2,doorX-DW/2,DL,DL+WT,Y0,top);cbx(doorX+DW/2,W/2,DL,DL+WT,Y0,top);cbx(doorX-DW/2,doorX+DW/2,DL,DL+WT,Y0+DH,top);
+ cbx(-W/2,W/2,DR-WT,DR,Y0,top);cbx(-W/2,-W/2+WT,DL,DR,Y0,top);cbx(W/2-WT,W/2,DL,DR,Y0,top);
+ /* a facade as solid pieces round its holes (occluding and merged); axis 'x': the wall runs along x at c0..c1; axis 'z': along z. Columns with equal heights merge */
+ const VIS={col:false,cast:false};
+ const facadeVis=(axis,c0,c1,a0,a1,hs,y0,y1,m)=>{
+  const xs=[a0,a1];for(const h of hs){if(h.s0>a0&&h.s0<a1)xs.push(h.s0);if(h.s1>a0&&h.s1<a1)xs.push(h.s1)}
+  xs.sort((p,q)=>p-q);const cols=[];
+  for(let i=0;i<xs.length-1;i++){const s0=xs[i],s1=xs[i+1];if(s1-s0<1e-6)continue;const sm=(s0+s1)/2;
+   const cov=hs.filter(h=>sm>h.s0&&sm<h.s1).sort((p,q)=>p.y0-q.y0);
+   const iv=[];let y=y0;for(const h of cov){if(h.y0>y)iv.push([y,h.y0]);y=Math.max(y,h.y1)}if(y<y1)iv.push([y,y1]);
+   cols.push({s0,s1,iv})}
+  const put=c=>{for(const[u,v]of c.iv){if(axis==='x')bx(c.s0,c.s1,c0,c1,u,v,m,VIS);else bx(c0,c1,c.s0,c.s1,u,v,m,VIS)}};
+  let cur=null;
+  for(const c of cols){if(cur&&Math.abs(cur.s1-c.s0)<1e-6&&JSON.stringify(cur.iv)===JSON.stringify(c.iv))cur.s1=c.s1;else{if(cur)put(cur);cur={s0:c.s0,s1:c.s1,iv:c.iv}}}
+  if(cur)put(cur)};
+ const gl={col:false,occ:true,cast:false};
+ const hN=[],hS=[],hW=[],hE=[];
+ for(let f=0;f<S;f++){const y0=Lv(f)+1.0,y1=Lv(f)+2.5;
+  for(let lx=-W/2+1.6;lx<=W/2-1.5;lx+=3.2){
+   if(!(f===0&&Math.abs(lx-doorX)<2.2)){hN.push({s0:lx-.7,s1:lx+.7,y0,y1});bx(lx-.7,lx+.7,DL+.12,DL+.18,y0,y1,MAT.glass,gl)}
+   hS.push({s0:lx-.7,s1:lx+.7,y0,y1});bx(lx-.7,lx+.7,DR-.18,DR-.12,y0,y1,MAT.glass,gl)}
+  for(let lz=DL+1.6;lz<=DR-1.5;lz+=3.2){hW.push({s0:lz-.7,s1:lz+.7,y0,y1});hE.push({s0:lz-.7,s1:lz+.7,y0,y1});
+   bx(-W/2+.12,-W/2+.18,lz-.7,lz+.7,y0,y1,MAT.glass,gl);bx(W/2-.18,W/2-.12,lz-.7,lz+.7,y0,y1,MAT.glass,gl)}}
+ hN.push({s0:doorX-DW/2,s1:doorX+DW/2,y0:Y0,y1:Y0+DH});
+ facadeVis('x',DL,DL+WT,-W/2,W/2,hN,Y0,top,mat);facadeVis('x',DR-WT,DR,-W/2,W/2,hS,Y0,top,mat);
+ facadeVis('z',-W/2,-W/2+WT,DL,DR,hW,Y0,top,mat);facadeVis('z',W/2-WT,W/2,DL,DR,hE,Y0,top,mat);
+let rooms=[];
+ if(shaft){
+  /* the ramp tube: a solid wall in the ramp zone, openings onto the corridor at both landings */
+  bx(sxA-WT,sxA,zLo,zHi,Y0,top,mat);
+  for(let f=0;f<S;f++){bx(sxA-WT,sxA,zMin,zLo,Lv(f)+DH,Lv(f+1),mat);bx(sxA-WT,sxA,zHi,zMax,Lv(f)+DH,Lv(f+1),mat)}
+  bx(mid-WT/2,mid+WT/2,zLo,zHi,Y0,top,mat);           /* divides the two ramp lanes */
+  bx(sxA,sxB,zMax,zMax+WT,Y0,top,mat);                /* closes the south end of the tube */
+  /* corridor west of the tube; rooms west of the corridor, each with a door onto it */
+  const cA=sxA-WT-CORR_W,n=Math.max(1,Math.floor((D-2*WT)/ROOM_D)),zs=[];
+  for(let i=0;i<=n;i++)zs.push(DL+WT+i*(D-2*WT)/n);
+  for(let i=1;i<n;i++)bx(-W/2+WT,cA-WT,zs[i]-WT/2,zs[i]+WT/2,Y0,top,mat);
+  for(let i=0;i<n;i++){const a=zs[i]+(i?WT/2:0),b=zs[i+1]-(i<n-1?WT/2:0),c=(zs[i]+zs[i+1])/2;
+   bx(cA-WT,cA,a,c-ROOM_DW/2,Y0,top,mat);bx(cA-WT,cA,c+ROOM_DW/2,b,Y0,top,mat);bx(cA-WT,cA,c-ROOM_DW/2,c+ROOM_DW/2,Y0+DH,top,mat);
+   rooms.push({x0:-W/2+WT,x1:cA-WT,z0:zs[i],z1:zs[i+1]})}
+  /* floor slabs (walkable tops at each storey); the slab over a ramp lane is open, the landings stay solid */
+  const xs=[-W/2+WT,sxA,mid,sxB,W/2-WT],zz=[DL+WT,zLo,zHi,DR-WT];
+  for(let f=1;f<=S;f++){const hole=f<=NR?((f-1)%2===0?[sxA,mid]:[mid,sxB]):null;
+   for(let i=0;i<xs.length-1;i++)for(let j=0;j<zz.length-1;j++){const xa=xs[i],xb=xs[i+1],za=zz[j],zb=zz[j+1],mx=(xa+xb)/2,mz=(za+zb)/2;
+    if(hole&&mx>hole[0]&&mx<hole[1]&&mz>zLo&&mz<zHi)continue;
+    bx(xa,xb,za,zb,Lv(f)-WT,Lv(f),MAT.slab)}}
+  /* ramps: storey t up to t+1, alternating lanes; a landing is where two ramps meet at a storey */
+  for(let t=0;t<NR;t++){const h=t%2===0,xc=h?(sxA+mid)/2:(mid+sxB)/2,zs0=h?zLo:zHi,ze=h?zHi:zLo;
+   const a=wp(xc,zs0),b=wp(xc,ze),A={x:a[0],y:Lv(t),z:a[1]},B={x:b[0],y:Lv(t+1),z:b[1]};
+   RAMPS.push({ax:A.x,az:A.z,bx:B.x,bz:B.z,yA:A.y,yB:B.y,hw:RW,L:Math.hypot(B.x-A.x,B.z-A.z)||1});
+   const m=new T.Mesh(wedgeGeo(A,B,RW,.3),MAT.ramp);m.castShadow=m.receiveShadow=true;world.add(m)}
+  /* roof: a parapet round the edge and rooftop equipment */
+  if(sp.roof){bx(-W/2,W/2,DL,DL+WT,top,top+.9,mat);bx(-W/2,W/2,DR-WT,DR,top,top+.9,mat);bx(-W/2,-W/2+WT,DL,DR,top,top+.9,mat);bx(W/2-WT,W/2,DL,DR,top,top+.9,mat);
+   bx(-W/2+1.6,-W/2+2.8,DR-4.2,DR-2.9,top,top+1.1,MAT.metal);bx(W/2-3.6,W/2-2.4,DL+2.6,DL+3.8,top,top+.8,MAT.metal)}
+  /* furniture on every storey, one or two pieces per room, kept away from the door */
+  for(let f=0;f<S;f++)for(const r of rooms){const rx=(r.x0+r.x1)/2,rz=(r.z0+r.z1)/2,y=Lv(f);
+   if(sp.kind==='tower'||sp.kind==='office'){bx(rx-.6,rx+.7,rz-2.2,rz-1.4,y,y+.75,MAT.wood);bx(r.x0+.4,r.x0+.9,rz+1.6,rz+2.9,y,y+1.9,MAT.dark)}
+   else{bx(rx-.9,rx+.9,rz-2.6,rz-1.4,y,y+.5,MAT.inner);bx(rx-.4,rx+.6,rz+1.4,rz+2.2,y,y+.75,MAT.wood)}}
+ } else {
+  /* single storey: a visual roof and a layout by kind (the door opens straight into the main room) */
+  bx(-W/2+.15,W/2-.15,DL+.15,DR-.15,top,top+.25,MAT.roof,{col:false});
+  if(sp.kind==='shop'||sp.kind==='kiosk'){
+   bx(-W/2+WT,-W/2+.9,DL+.8,DR-.8,Y0,Y0+1.8,MAT.wood);bx(W/2-.9,W/2-WT,DL+.8,DR-.8,Y0,Y0+1.8,MAT.wood);   /* shelving */
+   bx(-W/2+1.4,W/2-1.4,DL+2.2,DL+2.9,Y0,Y0+.95,MAT.wood);                                          /* counter */
+   if(sp.kind==='shop'&&D>9){const pz=DR-3.5;bx(-W/2+WT,-.6,pz,pz+WT,Y0,top,mat);bx(.6,W/2-WT,pz,pz+WT,Y0,top,mat)}}
+  else if(sp.kind==='house'){const pz=DL+D*.45;bx(-W/2+WT,-1.2,pz,pz+WT,Y0,top,mat);bx(1.2,W/2-WT,pz,pz+WT,Y0,top,mat);
+   const zc=(pz+WT+DR-WT)/2;bx(W/6-WT/2,W/6+WT/2,pz+WT,zc-.6,Y0,top,mat);bx(W/6-WT/2,W/6+WT/2,zc+.6,DR-WT,Y0,top,mat);
+   bx(-W/2+1.2,-W/2+2.9,DL+1.4,DL+3.0,Y0,Y0+.8,MAT.inner);bx(-W/2+1.2,-W/2+2.8,DR-3.2,DR-2.2,Y0,Y0+.6,MAT.wood);bx(W/6+.3,W/6+1.7,DR-3.2,DR-1.6,Y0,Y0+.75,MAT.wood)}
+  else if(sp.kind==='big'){for(const lx of[-W/4,W/4])for(let lz=DL+3;lz<DR-3;lz+=5)bx(lx-.9,lx+.9,lz,lz+2.4,Y0,Y0+2.1,MAT.metal);
+   bx(-W/2+1,-W/2+5,DL+1.6,DL+2.8,Y0,Y0+1,MAT.wood);bx(W/2-5,W/2-1,DL+1.6,DL+2.8,Y0,Y0+1,MAT.wood)}
+  else if(sp.kind==='wh'){for(const lx of[-W/3,0,W/3])for(let lz=DL+4;lz<DR-4;lz+=6)bx(lx-1.1,lx+1.1,lz,lz+2.5,Y0,Y0+4.2,MAT.metal);
+   bx(-W/2+.6,-W/2+2.4,DR-6,DR-3,Y0,Y0+1.1,MAT.wood)}
+ }
+ return{doorX,shaft,rooms,door:wp(doorX,DL+1.2),outside:wp(doorX,DL-2.2)}}
+/* a building from a block offset. The door faces the street on the nearest block edge unless set */
+function dirOf(ox,oz){if(Math.abs(ox)>Math.abs(oz))return ox<0?'W':'E';return oz<0?'N':'S'}
+function placeBld(bcx,bcz,o){const dir=o.door||dirOf(o.ox,o.oz);
+ const sp={W:o.W,D:o.D,S:o.S,kind:o.kind,fh:o.fh,roof:!!o.roof,shaft:!!o.shaft,k:DIRK[dir],wi:o.wi||0};
+ const info=bld(bcx+o.ox,bcz+o.oz,sp);CITY.push({x:bcx+o.ox,z:bcz+o.oz,kind:o.kind,S:o.S,dir,W:o.W,D:o.D,shaft:info.shaft,door:info.door,outside:info.outside});return info}
+/* ----- props ----- */
+function pole(x,z,h,r){addBox(x-.1,FY,z-.1,.2,h,.2,MAT.metal,{col:false});circles.push({x,z,r:r||.25})}
+function streetLight(x,z){pole(x,z,6.2,.25);addBox(x-.4,FY+6,z-.1,.8,.22,.22,MAT.metal,{col:false})}
+function trafficLight(x,z){pole(x,z,4.6,.25);addBox(x-.25,FY+4.4,z-.15,.5,1.1,.3,MAT.blk,{col:false})}
+function bench(x,z,yaw){const wide=Math.abs(Math.cos(yaw))>.5;addBox(x-(wide?.9:.25),FY,z-(wide?.25:.9),wide?1.8:.5,.5,wide?.5:1.8,MAT.wood)}
+function bin(x,z){addBox(x-.35,FY,z-.35,.7,1.0,.7,MAT.metal)}
+function barrier(x,z,len){addBox(x-len/2,FY,z-.3,len,.9,.6,MAT.barrier)}
+function fence(x0,z0,x1,z1){const ax=Math.abs(z1-z0)<.01,len=Math.hypot(x1-x0,z1-z0),cx=(x0+x1)/2,cz=(z0+z1)/2;addBox(ax?cx-len/2:cx-.04,FY,ax?cz-.04:cz-len/2,ax?len:.08,1.4,ax?.08:len,MAT.metal,{occ:false})}
+/* a car, rotated about the vertical axis. Collision: two circles at the axle line. wreck = dark and tilted. */
+function car(x,z,yaw,wreck){const mt=wreck?MAT.blk:MAT.cars[(Math.abs(Math.round(x*7+z*3))%MAT.cars.length)],s=Math.sin(yaw),c=Math.cos(yaw);
+ const put=(w,h,d,lx,ly,lz,m)=>{const me=new T.Mesh(BOX1,m);me.scale.set(w,h,d);me.rotation.y=yaw;me.position.set(x+lx*c+lz*s,FY+ly,z-lx*s+lz*c);me.castShadow=me.receiveShadow=true;world.add(me);occluders.push(me)};
+ put(1.9,.7,4.4,0,.55,0,mt);put(1.7,.55,2.3,0,1.15,-.2,MAT.dark);
+ circles.push({x:x+1.5*s,z:z+1.5*c,r:1.15},{x:x-1.5*s,z:z-1.5*c,r:1.15});CARS.push({x,z,yaw,wreck:!!wreck})}
+function tree(x,z,s){TREES.push({x,z,s:s||1});circles.push({x,z,r:.32})}
+function bush(x,z,s){BUSH.push({x,z,s:s||1})}
+/* a base: a concrete wall round the 42 m block with one gate on the street side; tents, a hut, crates and sandbags inside */
+function compound(cx,cz,gate){const h=2.0,t=1.0,g0=cz-4,g1=cz+4,wall=(x0,z0,x1,z1)=>addBox((x0+x1)/2,FY,(z0+z1)/2,x1-x0,h,z1-z0,MAT.barrier);
+ wall(cx-21,cz-21,cx+21,cz-20);wall(cx-21,cz+20,cx+21,cz+21);
+ if(gate==='E'){wall(cx-21,cz-21,cx-20,cz+21);wall(cx+20,cz-21,cx+21,g0);wall(cx+20,g1,cx+21,cz+21)}
+ else{wall(cx+20,cz-21,cx+21,cz+21);wall(cx-21,cz-21,cx-20,g0);wall(cx-21,g1,cx-20,cz+21)}
+ for(const[x,z]of[[cx+8,cz+8],[cx+14,cz+3]])addBox(x-2.8,FY,z-1.8,5.6,2.2,3.6,MAT.tent,{occ:true});
+ addBox(cx+6,FY,cz-10,6,2.6,4,MAT.roof);
+ for(let i=0;i<6;i++)addBox(cx-14+i*1.2,FY,cz+15,.9,.6,.9,MAT.sand);
+ addBox(cx-17,FY,cz+17,1,1,1,MAT.wood);addBox(cx-15.6,FY,cz+17.4,.9,.9,.9,MAT.wood)}
+/* one block: ground, buildings and props. Its meshes are merged into one mesh per material (fewer draw calls) */
+function block(bi,bj,letter){const cx=BLK_C[bi],cz=BLK_C[bj],E=BLK_EDGE;
+ let s=((bi+1)*7919+(bj+1)*104729)%2147483647;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+ const sv=world,occ0=occluders.length,G0=new T.Group();world=G0;
+ const base=(letter==='G'||letter==='H'||letter==='R')?MAT.lawn:(letter==='N'||letter==='W')?MAT.sand:MAT.conc;
+ patch(cx-E,cx+E,cz-E,cz+E,base,FY+.02);
+ for(const sx of[-1,1])for(const sz of[-1,1])streetLight(cx+sx*(E-1.5),cz+sz*(E-1.5));
+ const BD=[];const T1=o=>{const i=placeBld(cx,cz,o);BD.push(i.outside);return i};
+ /* parked cars keep clear of every door approach in this block */
+ const carSafe=(x,z,yaw,w)=>{if(BD.some(q=>Math.hypot(q[0]-x,q[1]-z)<4.6))return;car(x,z,yaw,w)};
+ if(letter==='N'||letter==='W')compound(cx,cz,letter==='N'?'E':'W');
+ if(letter==='D'){T1({ox:-6,oz:-4,W:20,D:22,S:8,kind:'tower',roof:true,shaft:true,wi:Math.floor(rnd()*5)});T1({ox:15,oz:-14,W:9,D:9,S:1,kind:'shop',wi:2});T1({ox:15,oz:4,W:9,D:12,S:1,kind:'shop',wi:1});
+  if(Math.abs(cx)===30&&Math.abs(cz)===30)T1({ox:-Math.sign(cx)*17,oz:-Math.sign(cz)*17,W:6,D:6,S:1,kind:'kiosk',door:Math.sign(cx)>0?'W':'E',wi:3})}
+ if(letter==='M'){T1({ox:-5,oz:0,W:20,D:22,S:5,kind:'office',roof:true,shaft:true,wi:4});T1({ox:15,oz:-14,W:9,D:9,S:1,kind:'shop',wi:0});T1({ox:15,oz:12,W:9,D:9,S:1,kind:'shop',wi:2})}
+ if(letter==='R'){T1({ox:-8,oz:0,W:14,D:24,S:3,kind:'apt',roof:true,shaft:true,wi:Math.floor(rnd()*5)});T1({ox:12,oz:-14,W:9,D:8,S:1,kind:'house',wi:1});T1({ox:12,oz:12,W:9,D:8,S:1,kind:'house',wi:3})}
+ if(letter==='H')for(const[ox,oz]of[[-12,-12],[12,-12],[-12,12],[12,12]])T1({ox,oz,W:9,D:8,S:1,kind:'house',wi:Math.floor(rnd()*5)});
+ if(letter==='S')for(const ox of[-15.5,-5,5.5,16])T1({ox,oz:-14,W:10,D:8,S:1,kind:'shop',door:'N',wi:Math.floor(rnd()*5)});
+ if(letter==='K'){T1({ox:-8,oz:0,W:26,D:32,S:1,kind:'big',fh:5,door:'W',wi:1});T1({ox:16,oz:-6,W:14,D:22,S:3,kind:'office',roof:true,shaft:true,wi:3})}
+ if(letter==='I')T1({ox:0,oz:0,W:30,D:36,S:1,kind:'wh',fh:7,door:'N',wi:4});
+ if(letter==='G')T1({ox:-16,oz:-14,W:6,D:5,S:1,kind:'kiosk',door:'S',wi:2});
+ /* lots and yards, placed where no building stands */
+ if(letter==='S'){patch(cx-19,cx+19,cz+6,cz+21,MAT.asph,FY+.03);car(cx-12,cz+12,0,false);car(cx-4,cz+15,0,false);car(cx+6,cz+12,0,true)}
+ if(letter==='K'){patch(cx+7,cx+21,cz+8,cz+21,MAT.asph,FY+.03);car(cx+11,cz+13,0,false);car(cx+17,cz+16,0,false)}
+ if(letter==='R'){patch(cx-19,cx-3,cz+14,cz+21,MAT.asph,FY+.03);car(cx-14,cz+17.5,Math.PI/2,false);car(cx-8,cz+17.5,Math.PI/2,false)}
+ if(letter==='I'){barrier(cx+18,cz-9,4);barrier(cx+18,cz+9,4);for(const z of[-12,-4,4])addBox(cx+17.6,FY,cz+z-1.2,2.4,2.6,6,MAT.container[Math.abs(Math.round(z))%3]);
+  fence(cx-22,cz-21,cx-22,cz+21);fence(cx+21,cz-21,cx+21,cz+21)}
+ if(letter==='G'){patch(cx-3,cx+3,cz-22,cz+22,MAT.path,FY+.03);patch(cx-22,cx+22,cz-3,cz+3,MAT.path,FY+.03);
+  for(let i=0;i<9;i++){const x=cx+(rnd()-.5)*38,z=cz+(rnd()-.5)*38;if(Math.abs(x-cx)>4||Math.abs(z-cz)>4)tree(x,z,.9+rnd()*.5)}
+  for(let i=0;i<8;i++)bush(cx+(rnd()-.5)*40,cz+(rnd()-.5)*40,.8+rnd()*.5);bench(cx+8,cz+8,0);bench(cx-8,cz-8,Math.PI/2)}
+ /* sidewalk furniture (on the outer 3 m ring) and parked cars in the street lane beside the block */
+ if(letter==='D'||letter==='M'||letter==='S'){bench(cx+E-1.5,cz+8,0);bin(cx-E+1.5,cz-4);bin(cx+E-1.5,cz+4)}
+ if(letter==='H'||letter==='R'||letter==='K'){tree(cx+E-1,cz,1+rnd()*.3);tree(cx-E+1,cz,1+rnd()*.3)}
+ if(letter==='D'||letter==='M'||letter==='R'||letter==='S'||letter==='K'){
+  if(rnd()<.8)carSafe(cx-E-2.2,cz+(rnd()-.5)*10,0,false);if(rnd()<.7)carSafe(cx+E+2.2,cz-6+rnd()*6,0,false);if(rnd()<.6)carSafe(cx+4+rnd()*6,cz-E-2.2,Math.PI/2,false);
+  if(rnd()<.25)carSafe(cx+(rnd()-.5)*14,cz+E+2.2,Math.PI/2,true)}
+ if(letter==='I'||letter==='N'||letter==='W'){if(rnd()<.6)carSafe(cx-E-2.2,cz+8,0,true)}
+ world=sv;
+ const mm=mergeMeshes(G0);for(const m of mm){m.castShadow=m.receiveShadow=true;if(m.material===MAT.glass)m.userData.glass=true}
+ occluders.splice(occ0,occluders.length-occ0,...mm);world.add(...mm)}
+/* streets: asphalt on each street line, dashed centre lines between the junctions */
+function streets(){for(const c of STREET_C){patch(-186,186,c-STREET_HW,c+STREET_HW,MAT.asph,FY+.04);patch(c-STREET_HW,c+STREET_HW,-186,186,MAT.asph,FY+.04)}
+ const dash=new T.InstancedMesh(BOX1,MAT.white,STREET_C.length*2*46),m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),p=new T.Vector3();let di=0;
+ for(const c of STREET_C)for(const dir of[0,1])for(let t=-180;t<=180;t+=8){if(STREET_C.some(o=>Math.abs(o-t)<8))continue;
+  const x=dir?c:t,z=dir?t:c;m4.compose(p.set(x,FY+.07,z),q,sc.set(dir?.15:2.4,.02,dir?2.4:.15));dash.setMatrixAt(di++,m4)}
+ dash.count=di;dash.instanceMatrix.needsUpdate=true;dash.receiveShadow=true;world.add(dash)}
+/* the map floor, the boundary walls (collision: nobody leaves the city) */
+function ground(){const g=new T.PlaneGeometry(MAP_H*2,MAP_H*2);g.rotateX(-Math.PI/2);const m=new T.Mesh(g,MAT.lawn);m.position.y=FY;m.receiveShadow=true;world.add(m);
+ const e=MAP_H-2,t=3,mE=MAT.walls[0];addBox(0,FY,-e,e*2+t,3,t,mE);addBox(0,FY,e,e*2+t,3,t,mE);addBox(-e,FY,0,t,3,e*2+t,mE);addBox(e,FY,0,t,3,e*2+t,mE)}
+function ringAt(x,z,col,r0,r1){const m=new T.Mesh(new T.RingGeometry(r0,r1,36),new T.MeshBasicMaterial({color:col,transparent:true,opacity:.7,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(x,FY+.07,z);world.add(m)}
+/* a base's flag and spawn marker (animated flags are kept in flags[]) */
+function baseMarks(B){const flagTex=cvs(192,120,(g,w,h)=>{g.fillStyle=B.id==='nato'?'#1b3a73':'#a01c1c';g.fillRect(0,0,w,h);g.fillStyle='#f0f0f0';g.beginPath();g.arc(w/2,h/2,26,0,7);g.fill()});
+ const pl=new T.Mesh(new T.CylinderGeometry(.06,.08,9,6),MAT.metal);pl.position.set(B.x+3,FY+4.5,B.z+2);post(pl);circles.push({x:B.x+3,z:B.z+2,r:.25});
+ const f=new T.Mesh(new T.PlaneGeometry(2.9,1.8),new T.MeshBasicMaterial({map:flagTex,side:T.DoubleSide}));f.position.set(B.x+4.5,FY+7.8,B.z+2);f.userData.ph=flags.length*1.7;post(f);flags.push(f);
+ const mk=new T.Mesh(new T.RingGeometry(1.15,1.45,32),new T.MeshBasicMaterial({color:B.id==='nato'?0x6f9be0:0xe05a4a,transparent:true,opacity:.8,depthWrite:false}));mk.rotation.x=-Math.PI/2;mk.position.set(B.spawn.x,FY+.08,B.spawn.z);post(mk)}
+/* ----- the map ----- */
 function buildWorld(){
  if(world){scene.remove(world);disposeG(world)}
- world=new T.Group();scene.add(world);boxes=[];circles=[];occluders=[];targets=[];flags=[];VEG=[];seed=1337;
- const SH=true,add=(m,c=SH,r=SH)=>{m.castShadow=c;m.receiveShadow=r;world.add(m);return m};
- const col=new T.Color(),BOX=new T.BoxGeometry(1,1,1);
- /* materials */
- const tGround=cvs(128,128,(g,w,h)=>{g.fillStyle='#d6d6d6';g.fillRect(0,0,w,h);speckle(g,w,h,2600,.35)},200,200);
- const tWall=cvs(128,128,(g,w,h)=>{g.fillStyle='#dcdcdc';g.fillRect(0,0,w,h);g.fillStyle='#0003';for(let y=0;y<h;y+=12)g.fillRect(0,y,w,2);speckle(g,w,h,900,.3)},3,1);
- const tRoof=cvs(64,64,(g,w,h)=>{g.fillStyle='#ccc';g.fillRect(0,0,w,h);g.fillStyle='#0004';for(let x=0;x<w;x+=8)g.fillRect(x,0,3,h);speckle(g,w,h,300,.3)},4,2);
- const tWood=cvs(64,64,(g,w,h)=>{g.fillStyle='#d4d4d4';g.fillRect(0,0,w,h);g.fillStyle='#0005';for(let x=0;x<w;x+=16)g.fillRect(x,0,2,h);for(let i=0;i<40;i++)g.fillRect(R()*w,R()*h,1,6+R()*10);speckle(g,w,h,200,.3)});
- const tSand=cvs(64,64,(g,w,h)=>{g.fillStyle='#d8d8d8';g.fillRect(0,0,w,h);speckle(g,w,h,900,.4);g.fillStyle='#0003';g.fillRect(0,30,w,2);g.fillRect(30,0,2,w)});
- const mGround=L({vertexColors:true,map:tGround}),mWall=L({color:0x7f836a,map:tWall}),mRoof=L({color:0x434a38,map:tRoof,side:T.DoubleSide}),mWood=L({color:0x8a6840,map:tWood}),
-  mSand=L({color:0xb0a47c,map:tSand}),mTent=L({color:0x6c6f48,side:T.DoubleSide,map:tSand}),mDark=L({color:0x15181a}),mDirt=L({color:0x6a5a3e,map:tGround}),mMetal=L({color:0x4b514b});
- /* penetration categories (Beta 0.2.5): R = resistance in J per metre of material. Unlisted materials (rock, tree trunks, concrete) block. */
- OCC_CAT=new Map([[mWood,{c:'wood',R:1500,col:0xc9a06a}],[mSand,{c:'sand',R:12000,col:0xcbbf98}],[mWall,{c:'concrete',R:1e9,col:0xd8d2c0}],[mDark,{c:'concrete',R:1e9,col:0xd8d2c0}],[mRoof,{c:'sheet',R:20000,col:0xffb050}],[mTent,{c:'fabric',R:600,col:0xbfb9a0}],[mMetal,{c:'metal',R:40000,col:0xffb050}]]);
- /* terrain */
- {const seg=Math.round(MAP_H*2/Qc.cell),g=new T.PlaneGeometry(MAP_H*2,MAP_H*2,seg,seg);g.rotateX(-Math.PI/2);const p=g.attributes.position;
-  for(let i=0;i<p.count;i++)p.setY(i,H(p.getX(i),p.getZ(i)));g.computeVertexNormals();
-  const nm=g.attributes.normal,cl=new Float32Array(p.count*3),A=new T.Color(0x4a5e2c),B=new T.Color(0x6e7c3c),D=new T.Color(0x6e5b3f),G=new T.Color(0x8c8672),c=new T.Color();
-  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),n=.5+.5*Math.sin(x*.07)*Math.cos(z*.06+1)+.2*Math.sin(x*.31+z*.27),f=flat(x,z),sl=1-nm.getY(i);
-   c.copy(A).lerp(B,clamp(n,0,1));c.lerp(D,clamp((sl-.05)*9,0,.9));c.lerp(f>.5?(.5+.5*Math.sin(x*.9)*Math.sin(z*.8)>.55?G:D):c,sstep(.3,.9,f)*.85);
-   c.multiplyScalar(.9+.2*Math.sin(x*.5)*Math.sin(z*.43));cl.set([c.r,c.g,c.b],i*3)}
-  g.setAttribute('color',new T.BufferAttribute(cl,3));const m=new T.Mesh(g,mGround);m.receiveShadow=SH;world.add(m)}
- /* helpers */
- function addBox(x,y,z,w,h,d,mat,o={}){const m=new T.Mesh(BOX,mat);m.scale.set(w,h,d);m.position.set(x,y+h/2,z);add(m,o.cast??SH,SH);
-  if(o.col!==false)boxes.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,top:y+h,bot:y});if(o.occ!==false)occluders.push(m);return m}
- function gable(x,y,z,span,rise,len,mat,alongX){const s=new T.Shape();s.moveTo(-span/2,0);s.lineTo(span/2,0);s.lineTo(0,rise);s.closePath();
-  const g=new T.ExtrudeGeometry(s,{depth:len,bevelEnabled:false});g.translate(0,0,-len/2);if(alongX)g.rotateY(Math.PI/2);const m=new T.Mesh(g,mat);m.position.set(x,y,z);add(m);occluders.push(m)}
- /* hills on the outskirts: stacked beveled tiers, one mesh per tier. They are sniping ground at the edge of the map. */
- for(const h of hillList()){const yb=Hraw(h.x,h.z)-h.h;
-  for(const t of h.t){const a=t.r*1.02,top=yb+t.h,bot=yb-3;const m=new T.Mesh(BEV_GEO,L({color:t.c}));m.position.set(h.x,bot,h.z);m.scale.set(2*a,top-bot,2*a);m.rotation.y=h.a;add(m,true,true)}}
- /* boundary edge: a concrete wall round the playable square (collision, so nobody leaves the map) */
- {const e=MAP_H-2,t=3,mEdge=L({color:0x6f6c64,map:tWall});addBox(0,FY,-e,e*2+t,6,t,mEdge);addBox(0,FY,e,e*2+t,6,t,mEdge);addBox(-e,FY,0,t,6,e*2+t,mEdge);addBox(e,FY,0,t,6,e*2+t,mEdge)}
- const SNAP0=snapWorld();
- /* outpost buildings */
- function hut(x,z,w,d,h,mw=mWall,mr=mRoof){addBox(x,FY-.2,z,w,h+.2,d,mw);gable(x,FY+h,z,d+.8,1.2,w+.8,mr,true);
-  const n=Math.floor(w/3.2);for(let i=0;i<n;i++){const wx=x-w/2+(i+.5)*w/n;for(const sd of[-1,1])addBox(wx,FY+1.1,z+sd*(d/2+.03),.9,.8,.1,mDark,{col:false,occ:false,cast:false})}
-  addBox(x+w/2-1.6,FY,z+d/2+.04,1,2,.1,mWood,{col:false,occ:false,cast:false})}
- hut(-12,-9,13,5.5,3);hut(-12,3,13,5.5,3);hut(12,-8,8,6.5,3.2);hut(13,4,7,4.5,2.8);
- {const m=new T.Mesh(new T.CylinderGeometry(.04,.07,8,6),mMetal);m.position.set(15,FY+3.2+4,-6);add(m,SH,false)}
- for(const[x,z]of[[-1,-14],[4,-14.5],[-7,-16.5]]){gable(x,FY,z,3.2,2.2,5,mTent,false);boxes.push({x0:x-1.6,x1:x+1.6,z0:z-2.5,z1:z+2.5,top:FY+2.2})}
- /* sandbags */
- {const bags=[];const wall=(x,z,len,ax)=>{const n=Math.round(len/.8);for(let r=0;r<3;r++){const c=r%2?n-1:n;for(let i=0;i<c;i++){const o=(i-(c-1)/2)*.8;bags.push([ax?x+o:x+rr(-.04,.04),FY+r*.27+.135,ax?z+rr(-.04,.04):z+o,(ax?0:Math.PI/2)+rr(-.12,.12)])}}
-   boxes.push(ax?{x0:x-len/2,x1:x+len/2,z0:z-.28,z1:z+.28,top:FY+.8,climb:true}:{x0:x-.28,x1:x+.28,z0:z-len/2,z1:z+len/2,top:FY+.8,climb:true})};
-  wall(0,.8,5,true);wall(-2.6,-.6,3,false);wall(2.6,-.6,3,false);wall(-7,18,4,true);wall(7,18,4,true);wall(-20,-58,4,true);wall(20,-58,4,true);
-  const im=new T.InstancedMesh(new T.BoxGeometry(.8,.27,.5),mSand,bags.length);bags.forEach((b,i)=>setI(im,i,b[0],b[1],b[2],1,1,1,b[3]));im.castShadow=im.receiveShadow=SH;world.add(im);occluders.push(im)}
- /* crates, barrels */
- for(const[x,y,z,s]of[[19,0,-1,1],[20.2,0,-1.1,.9],[19.5,1,-1,.8],[-20,0,12,1],[-20.1,0,13.2,.9]])addBox(x,FY+y,z,s,s,s,mWood);
- {const pts=[[19,3],[20,3.7],[19.2,4.6],[-19.5,16],[-20.4,16.8]],im=new T.InstancedMesh(new T.CylinderGeometry(.3,.3,.9,10),L({color:0xffffff}),pts.length);
-  pts.forEach((p,i)=>{setI(im,i,p[0],FY+.45,p[1],1,1,1);im.setColorAt(i,col.setHex(i%2?0x4a5a3a:0x7a4a2a));circles.push({x:p[0],z:p[1],r:.35})});im.castShadow=SH;world.add(im)}
- /* fence */
- {const posts=[],seg=(x0,z0,x1,z1)=>{const len=Math.hypot(x1-x0,z1-z0),ax=Math.abs(z1-z0)<.01,cx=(x0+x1)/2,cz=(z0+z1)/2;
-   for(const y of[.5,1])addBox(cx,FY+y,cz,ax?len:.05,.1,ax?.05:len,mWood,{col:false,cast:false});
-   boxes.push({x0:cx-(ax?len/2:.08),x1:cx+(ax?len/2:.08),z0:cz-(ax?.08:len/2),z1:cz+(ax?.08:len/2),top:FY+1.3});
-   const n=Math.max(1,Math.round(len/3));for(let i=0;i<=n;i++)posts.push([x0+(x1-x0)*i/n,z0+(z1-z0)*i/n])};
-  seg(-22,22,-3,22);seg(3,22,22,22);seg(-22,-20,-3,-20);seg(3,-20,22,-20);seg(-22,-20,-22,22);seg(22,-20,22,22);
-  const im=new T.InstancedMesh(BOX,mWood,posts.length);posts.forEach((p,i)=>setI(im,i,p[0],FY+.7,p[1],.14,1.4,.14));im.castShadow=SH;world.add(im)}
- shiftSince(SNAP0,BASES.nato.x,BASES.nato.z);
- /* flags: built per base below */
- {const NB=BASES.nato,WB=BASES.wp,cx=WB.x,cz=WB.z;
-  const mTentWP=L({color:0x8c7752,side:T.DoubleSide,map:tSand}),mWallWP=L({color:0x9b8f68,map:tWall}),mRoofWP=L({color:0x5b3d2c,map:tRoof,side:T.DoubleSide}),mCrateWP=L({color:0x55603c,map:tWood});
-  function flagTex(kind){return cvs(192,120,(g,w,h)=>{if(kind==='nato'){g.fillStyle='#1b3a73';g.fillRect(0,0,w,h);g.strokeStyle='#f0f0f0';g.lineWidth=4;g.beginPath();g.arc(w/2,h/2,30,0,7);g.stroke();g.fillStyle='#f0f0f0';
-     for(let i=0;i<4;i++){g.save();g.translate(w/2,h/2);g.rotate(i*Math.PI/2);g.beginPath();g.moveTo(0,-46);g.lineTo(6,-6);g.lineTo(-6,-6);g.closePath();g.fill();g.restore()}}
-    else{g.fillStyle='#a01c1c';g.fillRect(0,0,w,h);g.strokeStyle='#e0b84a';g.lineWidth=5;g.strokeRect(5,5,w-10,h-10);g.fillStyle='#e0b84a';g.beginPath();
-     for(let i=0;i<10;i++){const r=i%2?15:38,a=-Math.PI/2+i*Math.PI/5;g.lineTo(w/2+Math.cos(a)*r,h/2+Math.sin(a)*r)}g.closePath();g.fill()}})}
-  function makeFlag(x,z,kind){const y=H(x,z),pole=new T.Mesh(new T.CylinderGeometry(.06,.08,9.5,6),mMetal);pole.position.set(x,y+4.75,z);add(pole,SH,false);circles.push({x,z,r:.2});
-   const f=new T.Mesh(new T.PlaneGeometry(2.9,1.8),new T.MeshBasicMaterial({map:flagTex(kind),side:T.DoubleSide}));f.position.set(x+1.5,y+8.2,z);f.userData.ph=flags.length*1.7;world.add(f);flags.push(f);flag=flags[0]}
-  function marker(sp,col){const g=new T.Group(),m=new T.MeshBasicMaterial({color:col,transparent:true,opacity:.8,depthWrite:false});g.position.set(sp.x,H(sp.x,sp.z)+.06,sp.z);g.rotation.y=sp.yaw;
-   const r=new T.Mesh(new T.RingGeometry(1.15,1.45,32),m);r.rotation.x=-Math.PI/2;g.add(r);
-   const sh=new T.Shape();sh.moveTo(0,.95);sh.lineTo(.5,-.35);sh.lineTo(0,-.12);sh.lineTo(-.5,-.35);sh.closePath();const a=new T.Mesh(new T.ShapeGeometry(sh),m);a.rotation.x=-Math.PI/2;g.add(a);world.add(g)}
-  function sign(x,z,text,col,face,fs=34){const ct=cvs(512,100,(g,w,h)=>{g.fillStyle='#1c1f14';g.fillRect(0,0,w,h);g.strokeStyle=col;g.lineWidth=5;g.strokeRect(4,4,w-8,h-8);g.fillStyle=col;g.font='bold '+fs+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text,w/2,h/2+2)}),gy=H(x,z);
-   for(const s of[-1,1])addBox(x+s*2.3*Math.cos(face),gy,z-s*2.3*Math.sin(face),.14,2.8,.14,mWood,{col:false,occ:false,cast:false});
-   for(const k of[0,1]){const p=new T.Mesh(new T.PlaneGeometry(4.6,.9),new T.MeshBasicMaterial({map:ct}));p.position.set(x+Math.sin(face+k*Math.PI)*.08,gy+2.3,z+Math.cos(face+k*Math.PI)*.08);p.rotation.y=face+k*Math.PI;world.add(p)}}
-  function bagWall(list){const bags=[];for(const[x,z,len,ax]of list){const n=Math.round(len/.8);for(let r=0;r<3;r++){const c=r%2?n-1:n;for(let i=0;i<c;i++){const o=(i-(c-1)/2)*.8,gy=H(x,z);bags.push([ax?x+o:x+rr(-.04,.04),gy+r*.27+.135,ax?z+rr(-.04,.04):z+o,(ax?0:Math.PI/2)+rr(-.12,.12)])}}
-    boxes.push(ax?{x0:x-len/2,x1:x+len/2,z0:z-.28,z1:z+.28,top:FY+.8,climb:true}:{x0:x-.28,x1:x+.28,z0:z-len/2,z1:z+len/2,top:FY+.8,climb:true})}
-   const im=new T.InstancedMesh(new T.BoxGeometry(.8,.27,.5),mSand,bags.length);bags.forEach((b,i)=>setI(im,i,b[0],b[1],b[2],1,1,1,b[3]));im.castShadow=im.receiveShadow=SH;world.add(im);occluders.push(im)}
-  /* NATO base identification (the original outpost is the NATO base) */
-  makeFlag(NB.x,NB.z+8,'nato');marker(NB.spawn,0x6f9be0);sign(NB.x+8,NB.z+26.5,NB.name,'#8fb0e8',faceTo(NB.x+8,NB.z+26.5,WB.x,WB.z)+Math.PI);
-  for(const[x,z]of[[NB.x-9,NB.z-20.8],[NB.x+9,NB.z-20.8]])addBox(x,FY,z,1.6,.9,1.2,L({color:0x3d4a2c,map:tWood}));  /* extra olive supply crates by the north gate */
-  /* Warsaw Pact base */
-  makeFlag(cx,cz+6,'wp');marker(WB.spawn,0xe05a4a);sign(cx+16,cz+25,WB.name,'#f0b8a8',faceTo(cx+16,cz+25,NB.x,NB.z)+Math.PI);
-  /* TRUCK SPAWN marker: a large yellow-on-black panel on two posts, with a tall yellow beacon mast beside it so it can be seen from far off. k scales the size (1 at the spawn point, smaller at the pad). */
-  function truckSign(x,z,face,k){const gy=H(x,z),ct=cvs(1024,240,(g,w,h)=>{g.fillStyle='#1c1f14';g.fillRect(0,0,w,h);g.strokeStyle='#ffd23a';g.lineWidth=14;g.strokeRect(7,7,w-14,h-14);g.fillStyle='#ffd23a';g.font='bold 150px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('TRUCK SPAWN',w/2,h/2+6)}),
-   W=6.2*k,Hp=1.45*k,base=3.3*k,fx=Math.sin(face),fz=Math.cos(face);
-   for(const sd of[-1,1])addBox(x+sd*W*.38*Math.cos(face),gy,z-sd*W*.38*Math.sin(face),.16,base+Hp,.16,mWood,{col:false,occ:false,cast:false});
-   for(const side of[0,Math.PI]){const p=new T.Mesh(new T.PlaneGeometry(W,Hp),new T.MeshBasicMaterial({map:ct}));p.position.set(x+fx*.08*(side?-1:1),gy+base+Hp/2,z+fz*.08*(side?-1:1));p.rotation.y=face+side;world.add(p)}
-   const mh=(k>=1?10:7),rx=Math.cos(face),rz=-Math.sin(face),ca=W/2+1.1;let mx=x+rx*ca,mz=z+rz*ca;if(roadDist(x-rx*ca,z-rz*ca)>roadDist(mx,mz)){mx=x-rx*ca;mz=z-rz*ca}const mast=new T.Mesh(new T.CylinderGeometry(.09,.12,mh,6),new T.MeshBasicMaterial({color:0xffd23a}));mast.position.set(mx,gy+mh/2,mz);world.add(mast);
-   const cap=new T.Mesh(new T.SphereGeometry(.42,10,8),new T.MeshBasicMaterial({color:0xfff2a0}));cap.position.set(mx,gy+mh+.2,mz);world.add(cap);
-   circles.push({x:mx,z:mz,r:.25})}
-  /* TRUCK SPAWN signs at the real TRUCKS spawn points: 7 m to the side of the truck, on whichever side is farther from the road, so the sign never blocks the road or a spawning truck */
-  for(const t of TRUCKS){const rx=Math.cos(t.syaw),rz=-Math.sin(t.syaw);let best=null;for(const k of[7,-7]){const x=t.sx+rx*k,z=t.sz+rz*k,d=roadDist(x,z);if(!best||d>best.d)best={x,z,d}}truckSign(best.x,best.z,faceTo(best.x,best.z,t.sx,t.sz),1)}
-  /* the spawn footprint: a flat yellow outline on the ground where the truck appears (no collision, not an occluder) */
-  for(const t of TRUCKS){const fx=Math.sin(t.syaw),fz=Math.cos(t.syaw),px=Math.cos(t.syaw),pz=-Math.sin(t.syaw),mk=new T.MeshBasicMaterial({color:0xffd23a});
-   const strip=(cx,cz,w,d)=>{const m=new T.Mesh(new T.BoxGeometry(w*1.8,.04,d),mk);m.position.set(cx,H(cx,cz)+.08,cz);m.rotation.y=t.syaw;world.add(m)};
-   strip(t.sx+px*1.5,t.sz+pz*1.5,.15,7);strip(t.sx-px*1.5,t.sz-pz*1.5,.15,7);strip(t.sx+fx*3.5,t.sz+fz*3.5,3.15,.15);strip(t.sx-fx*3.5,t.sz-fz*3.5,3.15,.15)}
-  /* the truck trigger pad (the button that spawns the trucks): a second TRUCK SPAWN sign 5.5 m from its centre, on the side away from the road, facing the pad */
-  for(const g of TRIGS){let best=null;for(let k=0;k<8;k++){const a=k*.785398,x=g.x+Math.sin(a)*5.5,z=g.z+Math.cos(a)*5.5,d=roadDist(x,z);if(clearPoint(x,z)&&(!best||d>best.d))best={x,z,d}}
-   if(best)truckSign(best.x,best.z,faceTo(best.x,best.z,g.x,g.z),.8)}
-  hut(cx-10,cz-8,12,5.5,3,mWallWP,mRoofWP);hut(cx+10,cz-10,10,5.5,3.1,mWallWP,mRoofWP);
-  for(const[x,z]of[[cx-16,cz+4],[cx-18,cz+14],[cx-12,cz+22]]){gable(x,FY,z,3.4,2.3,5.4,mTentWP,false);boxes.push({x0:x-1.7,x1:x+1.7,z0:z-2.7,z1:z+2.7,top:FY+2.3})}
-  bagWall([[cx+14,cz+20,6,true],[cx+20,cz+12,6,false],[cx+4,cz+20,5,true]]);
-  for(const[x,y,z,sz]of[[cx+10,0,cz+4,1.1],[cx+11.2,0,cz+4.1,1],[cx+10.5,1.05,cz+4,.85],[cx+2,0,cz-6,1],[cx+3.2,0,cz-6.1,.9]])addBox(x,FY+y,z,sz,sz,sz,mCrateWP);
-  {const pts=[[cx+18,cz-2],[cx+19,cz-1.3],[cx+18.2,cz-.2]],im=new T.InstancedMesh(new T.CylinderGeometry(.3,.3,.9,10),L({color:0xffffff}),pts.length);
-   pts.forEach((p,i)=>{setI(im,i,p[0],FY+.45,p[1],1,1,1);im.setColorAt(i,new T.Color(i%2?0x5a4a2a:0x6a3a2a));circles.push({x:p[0],z:p[1],r:.35})});im.castShadow=SH;world.add(im)}
-  for(const[x0,z0,x1,z1]of[[cx-22,cz-14,cx+22,cz-14],[cx-22,cz-14,cx-22,cz+26]]){const len=Math.hypot(x1-x0,z1-z0),ax=Math.abs(z1-z0)<.01,mx=(x0+x1)/2,mz=(z0+z1)/2;
-   for(const y of[.5,1])addBox(mx,FY+y,mz,ax?len:.05,.1,ax?.05:len,mWood,{col:false,cast:false});boxes.push({x0:mx-(ax?len/2:.08),x1:mx+(ax?len/2:.08),z0:mz-(ax?.08:len/2),z1:mz+(ax?.08:len/2),top:FY+1.3});
-   const n=Math.round(len/3);for(let i=0;i<=n;i++)addBox(x0+(x1-x0)*i/n,FY,z0+(z1-z0)*i/n,.14,1.4,.14,mWood,{col:false,occ:false,cast:false})}
- }
- /* ===== Beta 0.3.0: roads, settlements, outposts, resupply ===== */
- const roadMat={paved:L({color:0x3f4145,side:T.DoubleSide}),dirt:L({color:0x7d6b4d,side:T.DoubleSide}),track:L({color:0x6e6248,side:T.DoubleSide}),street:L({color:0x56595e,side:T.DoubleSide})},HW={paved:4.5,dirt:2.4,track:1.6,street:3};
- function ribbon(polys,hw){const pos=[],idx=[];let vi=0;
-  for(const pl of polys){const pts=densify(pl,2);
-   for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],c=pts[Math.min(pts.length-1,i+1)],x=pts[i][0],z=pts[i][1];
-    let dx=c[0]-a[0],dz=c[1]-a[1];const L=Math.hypot(dx,dz)||1;dx/=L;dz/=L;const nx=-dz*hw,nz=dx*hw;
-    pos.push(x+nx,H(x+nx,z+nz)+.07,z+nz,x-nx,H(x-nx,z-nz)+.07,z-nz);
-    if(i<pts.length-1)idx.push(vi,vi+2,vi+1,vi+1,vi+2,vi+3);vi+=2}}
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g}
- for(const t of['paved','dirt','track','street']){const list=ROADS.filter(r=>r.t===t);if(!list.length)continue;
-  const m=new T.Mesh(ribbon(list.map(r=>r.p),HW[t]),roadMat[t]);m.receiveShadow=SH;world.add(m)}
- /* ===== Beta 0.5.0 city: skyscrapers and blocks built from the test map's floor module (1.0 m wall panels, slab floors, window openings with frames and no glass). Every building has a ground-floor doorway on the road side. No doors, no furniture. ===== */
- const CITY_MAT=[0x8d8a80,0x9a948a,0x7e7b72,0xa39f92,0x6f6d66].map(c=>L({color:c,map:tWall}));
- const mSlab=L({color:0x5e5c57}),mFrameC=L({color:0xc9c5b8}),mRoofC=L({color:0x4a4a46}),mStepC=L({color:0x77746c});
- const FLOOR_H=3.4,CT=.3,DOOR_HC=2.0,DOOR_WC=1.6,WIN_WC=1.4,WIN_BC=.9,WIN_TC=2.5,NOC={col:false,occ:false,cast:false},CB=[];
- /* one run of wall between a0 and a1 (metres along the wall), from y0 to y1; k = 0 north, 1 south, 2 west, 3 east */
- function cRun(x,y,z,bx,bz,k,a0,a1,y0,y1,th,mat,o){const len=a1-a0,mid=(a0+a1)/2,hh=y1-y0;if(len<=0||hh<=0)return;
-  if(k<2)addBox(x+mid,y+y0,z+(k===0?-bz/2:bz/2),len,hh,th,mat,o);else addBox(x+(k===2?-bx/2:bx/2),y+y0,z+mid,th,hh,len,mat,o)}
- /* four walls with openings; on the ground storey the piers and the sills are solid, the lintels are not */
- function cWalls(x,y,z,bx,bz,h,mat,open,ground){const ws={col:false},wl={col:false};
-  for(let k=0;k<4;k++){const Lk=k<2?bx:bz,o=open[k].slice().sort((p,q)=>p.a0-q.a0),sol=ground?ws:wl;let cur=-Lk/2;
-   for(const q of o){cRun(x,y,z,bx,bz,k,cur,q.a0,0,h,CT,mat,sol);if(q.y0>0)cRun(x,y,z,bx,bz,k,q.a0,q.a1,0,q.y0,CT,mat,sol);if(q.y1<h)cRun(x,y,z,bx,bz,k,q.a0,q.a1,q.y1,h,CT,mat,wl);cur=q.a1}
-   cRun(x,y,z,bx,bz,k,cur,Lk/2,0,h,CT,mat,sol)}}
- /* a painted frame round each opening (no glass) */
- function cFrame(x,y,z,bx,bz,k,q){const th=CT+.08;
-  cRun(x,y,z,bx,bz,k,q.a0-.05,q.a0+.05,q.y0,q.y1,th,mFrameC,NOC);cRun(x,y,z,bx,bz,k,q.a1-.05,q.a1+.05,q.y0,q.y1,th,mFrameC,NOC);
-  cRun(x,y,z,bx,bz,k,q.a0-.1,q.a1+.1,q.y1,q.y1+.08,th,mFrameC,NOC);
-  if(q.y0>0)cRun(x,y,z,bx,bz,k,q.a0-.14,q.a1+.14,q.y0-.05,q.y0,th+.1,mFrameC,NOC)}
- /* the side of a building that faces the nearest road: 0 north, 1 south, 2 west, 3 east */
- function doorFacing(x,z){let best=null;for(const r of ROADS)for(const p of r.p){const d=Math.hypot(p[0]-x,p[1]-z);if(!best||d<best.d)best={d,px:p[0],pz:p[1]}}
-  if(!best)return 0;const dx=best.px-x,dz=best.pz-z;return Math.abs(dx)>Math.abs(dz)?(dx>0?3:2):(dz>0?1:0)}
- /* ---- city (0.4.0 pre-release 17, update 3): floors with stairs, glass panes, street grid ---- */
- const GG=-MAP_H+60,GP=46,CITY_N=120;               /* block cells on a 46 m grid; streets run between them */
- const SW=1.2,SR=FLOOR_H/10,RUN=FLOOR_H;            /* stairs: 1.2 m wide, ten treads of 0.34 m rise and run */
- const mGlass=L({color:0xa9cfe0,transparent:true,opacity:.3,depthWrite:false});
- const GLS={cast:false,col:false},SLABO={cast:false};
- /* one pane per window opening, filling the opening; panes are merged per building (see breakPane in game.js) */
- function glassPane(x,y,z,bx,bz,k,q){const mid=(q.a0+q.a1)/2,w=q.a1-q.a0-.12,h=q.y1-q.y0-.12,yb=y+q.y0+.06;
-  if(k<2)addBox(x+mid,yb,z+(k===0?-bz/2:bz/2),w,h,.05,mGlass,GLS);else addBox(x+(k===2?-bx/2:bx/2),yb,z+mid,.05,h,w,mGlass,GLS)}
- function building(x,z,bx,bz,floors,doorSide,mat){
-  const sv=world,occ0=occluders.length,G0=new T.Group(),y0=H(x,z);world=G0;
-  /* stairs run along the longer side (u); v is across it. Stairs alternate sides from floor to floor so each flight lands on a clear walkway */
-  const runZ=bz>=bx,Ur=Math.max(bx,bz),Vr=Math.min(bx,bz);
-  if(Ur<6)floors=1;                                 /* too small for a stair: one storey */
-  const vSign=runZ?(doorSide===3?1:doorSide===2?-1:0):(doorSide===1?1:doorSide===0?-1:0),side0=vSign?-vSign:-1;
-  const U0=-Ur/2+.8,U1=U0+RUN,CU=[-Ur/2+.1,Ur/2-.1],CV=[-Vr/2+.1,Vr/2-.1];
-  const sb=(u0,u1,v0,v1,y,h,mt,o)=>{const cu=(u0+u1)/2,cv=(v0+v1)/2,du=u1-u0,dv=v1-v0;if(runZ)addBox(x+cv,y,z+cu,dv,h,du,mt,o);else addBox(x+cu,y,z+cv,du,h,dv,mt,o)};
-  for(let f=0;f<floors;f++){const y=y0+f*FLOOR_H,g=f===0,open=[[],[],[],[]];
-   const stair=f<floors-1,sC=(Vr/2-.3-SW/2)*((f%2===0)?side0:-side0),HV0=sC-SW/2,HV1=sC+SW/2;
-   if(g)open[doorSide].push({a0:-DOOR_WC/2,a1:DOOR_WC/2,y0:0,y1:DOOR_HC,door:true});
-   for(let k=0;k<4;k++){if(g&&k===doorSide)continue;const Lk=k<2?bx:bz,n=Math.max(0,Math.floor((Lk-1.6)/2.8));
-    for(let i=0;i<n;i++){const c=-Lk/2+Lk*(i+1)/(n+1);open[k].push({a0:c-WIN_WC/2,a1:c+WIN_WC/2,y0:WIN_BC,y1:WIN_TC})}}
-   cWalls(x,y,z,bx,bz,FLOOR_H,mat,open,g);
-   /* walking collision: one full-height box per wall side (windows are not passable: the sill and the piers stop you); the ground door is a gap */
-   for(let k=0;k<4;k++){const c=k<2?z+(k===0?-bz/2:bz/2):x+(k===2?-bx/2:bx/2),a0=k<2?x-bx/2:z-bz/2,a1=k<2?x+bx/2:z+bz/2,mid=k<2?x:z;
-    const seg=(p,q)=>{if(q-p<=.01)return;if(k<2)boxes.push({x0:p,x1:q,z0:c-CT/2,z1:c+CT/2,top:y+FLOOR_H,bot:y});else boxes.push({x0:c-CT/2,x1:c+CT/2,z0:p,z1:q,top:y+FLOOR_H,bot:y})};
-    if(g&&k===doorSide){seg(a0,mid-DOOR_WC/2);seg(mid+DOOR_WC/2,a1)}else seg(a0,a1)}
-   for(let k=0;k<4;k++)for(const q of open[k]){cFrame(x,y,z,bx,bz,k,q);if(!q.door)glassPane(x,y,z,bx,bz,k,q)}
-   if(stair){ /* this floor's slab has a hole where the stair rises; the stair itself is solid treads */
-    for(const[a,b,c,d]of[[CU[0],U0,CV[0],CV[1]],[U1,CU[1],CV[0],CV[1]],[U0,U1,CV[0],HV0],[U0,U1,HV1,CV[1]]])if(b-a>.05&&d-c>.05)sb(a,b,c,d,y+FLOOR_H-.25,.25,mSlab,SLABO);
-    for(let i=0;i<10;i++)sb(U0+i*SR,U0+(i+1)*SR,HV0,HV1,y,(i+1)*SR,mSlab)}
-   else sb(CU[0],CU[1],CV[0],CV[1],y+FLOOR_H-.25,.25,mSlab,SLABO);
-   if(g){addBox(x,y+.02,z,bx-.6,.1,bz-.6,mSlab,NOC);const dx=doorSide===2?-bx/2:doorSide===3?bx/2:0,dz=doorSide===0?-bz/2:doorSide===1?bz/2:0;
-    addBox(x+dx,y,z+dz,doorSide<2?DOOR_WC+.4:.5,.06,doorSide<2?.5:DOOR_WC+.4,mStepC,NOC)}
-  }
-  addBox(x,y0+floors*FLOOR_H,z,bx+.3,.4,bz+.3,mRoofC,NOC);
-  world=sv;const mm=mergeMeshes(G0);for(const m of mm)if(m.material===mGlass)m.userData.glass=true;
-  occluders.splice(occ0,occluders.length-occ0,...mm);world.add(...mm);
- }
- /* free ground for a building of half-diagonal r: clear of the bases, outposts, truck triggers, other buildings and (optionally) roads */
- function freeSite(x,z,r,road){if(Math.max(Math.abs(x),Math.abs(z))>MAP_H-r-14)return false;
-  for(const[dx,dz]of[[0,0],[.7,.7],[-.7,.7],[.7,-.7],[-.7,-.7]])if(hillsH(x+dx*r,z+dz*r)>.2)return false; /* flat ground only */
-  if(road&&roadDist(x,z)<r+7)return false;
-  for(const b of[BASES.nato,BASES.wp])if(Math.hypot(x-b.x,z-b.z)<b.radius+r+70)return false;
-  if(OUTPOSTS.some(o=>Math.hypot(o.x-x,o.z-z)<r+40))return false;
-  if(TRIGS.some(g=>Math.hypot(g.x-x,g.z-z)<r+18))return false;
-  if(CB.some(q=>Math.hypot(q.x-x,q.z-z)<r+q.r+3))return false;
-  return true}
- function place(x,z,bx,bz,floors,mat){const ds=doorFacing(x,z);CB.push({x,z,r:Math.hypot(bx,bz)/2});HOUSES.push({x,z,bx,bz,doorSide:ds,doorW:DOOR_WC,barn:false,y:H(x,z)});building(x,z,bx,bz,floors,ds,mat)}
- /* the settlements' home sites become buildings: the largest settlement gets towers */
- for(const v of VILLAGE_PLANS)for(const hm of v.homes){const tall=v.s.size>.95,floors=tall?9+Math.floor(hm.ti*6):3+Math.floor(hm.pi*4);
-  const k=tall?1.3:1,bx=(hm.rot?hm.d:hm.w)*k,bz=(hm.rot?hm.w:hm.d)*k;
-  if(freeSite(hm.x,hm.z,Math.hypot(bx,bz)/2,false))place(hm.x,hm.z,bx,bz,floors,CITY_MAT[Math.floor(hm.pi*CITY_MAT.length)])}
- /* the city: blocks on the grid cells, in random order so the city spreads over the map; towers towards the middle */
- {let s=9173;const rn=()=>(s=(s*16807)%2147483647)/2147483647;const cells=[];
-  for(let i=0;i<24;i++)for(let j=0;j<24;j++)cells.push([GG+GP*i,GG+GP*j]);
-  for(let i=cells.length-1;i>0;i--){const j=Math.floor(rn()*(i+1));const t=cells[i];cells[i]=cells[j];cells[j]=t}
-  let n=0;
-  for(const[gx,gz]of cells){if(n>=CITY_N)break;
-   const x=gx+(rn()-.5)*6,z=gz+(rn()-.5)*6,c=Math.hypot(x,z),skip=rn()<.2,mat=CITY_MAT[Math.floor(rn()*CITY_MAT.length)];
-   let bx,bz,floors;
-   if(c<260){bx=14+rn()*5;bz=12+rn()*5;floors=12+Math.floor(rn()*8)}
-   else if(c<420){bx=12+rn()*5;bz=10+rn()*4;floors=5+Math.floor(rn()*6)}
-   else{bx=9+rn()*4;bz=8+rn()*3;floors=2+Math.floor(rn()*3)}
-   if(skip||!freeSite(x,z,Math.hypot(bx,bz)/2,true))continue;
-   place(x,z,bx,bz,floors,mat);n++}}
- /* streets: 9 m asphalt on the grid lines between blocks, pavements, centre dashes and lamps (visual only; trucks keep to ROADS) */
- {const T_MAX=MAP_H-100,LN=[];for(let i=0;i<24;i++)LN.push(GG+GP*i+GP/2);const segs=[];
-  const okAt=(x,z)=>{if(Math.max(Math.abs(x),Math.abs(z))>T_MAX+30)return false;
-   for(const[dx,dz]of[[0,0],[23,0],[-23,0],[0,23],[0,-23]])if(hillsH(x+dx,z+dz)>.2)return false;
-   for(const b of[BASES.nato,BASES.wp])if(Math.hypot(x-b.x,z-b.z)<b.radius+30)return false;
-   return!OUTPOSTS.some(o=>Math.hypot(o.x-x,o.z-z)<40)};
-  for(const dir of[0,1])for(const L0 of LN)for(let t=-T_MAX;t<T_MAX;t+=GP){const tc=t+GP/2,x=dir?L0:tc,z=dir?tc:L0;if(okAt(x,z))segs.push([dir,L0,tc])}
-  const N=segs.length,asph=new T.InstancedMesh(BOX,L({color:0x3f4145}),N),walk=new T.InstancedMesh(BOX,L({color:0x9b978d}),N*2),
-   dash=new T.InstancedMesh(BOX,L({color:0xd9d6c8}),N*3),lamp=new T.InstancedMesh(BOX,L({color:0x2a2c2e}),N*2);
-  let ai=0,wi=0,di=0,li=0;
-  for(const[dir,L0,tc]of segs){const x=dir?L0:tc,z=dir?tc:L0,y=H(x,z),len=GP+.1;
-   if(dir){setI(asph,ai++,L0,y+.03,tc,9,.06,len);for(const sd of[-1,1])setI(walk,wi++,L0+sd*5.5,y+.07,tc,2,.14,len);
-    for(const o of[-15,0,15])setI(dash,di++,L0,y+.04,tc+o,.25,.02,3);for(const sd of[-1,1])setI(lamp,li++,L0+sd*6.2,y+3,tc,.18,6,.18)}
-   else{setI(asph,ai++,tc,y+.03,L0,len,.06,9);for(const sd of[-1,1])setI(walk,wi++,tc,y+.07,L0+sd*5.5,len,.14,2);
-    for(const o of[-15,0,15])setI(dash,di++,tc+o,y+.04,L0,3,.02,.25);for(const sd of[-1,1])setI(lamp,li++,tc,y+3,L0+sd*6.2,.18,6,.18)}}
-  for(const im of[asph,walk,dash,lamp]){im.count=im===asph?ai:im===walk?wi:im===dash?di:li;im.instanceMatrix.needsUpdate=true;im.receiveShadow=true;world.add(im)}}
- /* street lamps along the paved roads (visual only) */
- {const pts=[];for(const r of ROADS)if(r.t==='paved')for(const p of densify(r.p,45))pts.push(p);
-  const im=new T.InstancedMesh(BOX,L({color:0x2a2c2e}),pts.length*2);let i=0;
-  for(const p of pts){const y=H(p[0],p[1]);for(const sd of[-1,1])setI(im,i++,p[0]+sd*5.5,y+3,p[1],.18,6,.18)}
-  im.count=i;im.instanceMatrix.needsUpdate=true;im.castShadow=SH;world.add(im)}
-
-/* outpost: sandbag lines, a small tent and two crates (restrained, no garrison) */
- function sandLine(x0,z0,x1,z1){const len=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(len/.8)),ax=Math.abs(z1-z0)<.01,bags=[];let ymax=0;
-  for(let r=0;r<2;r++)for(let i=0;i<n;i++){const t=(i+.5)/n,x=x0+(x1-x0)*t+(ax?0:r*.5),z=z0+(z1-z0)*t+(ax?r*.5:0),gy=H(x,z);ymax=Math.max(ymax,gy);
-   bags.push([x,gy+r*.27+.135,z,ax?0:Math.PI/2])}
-  const im=new T.InstancedMesh(new T.BoxGeometry(.8,.27,.5),mSand,bags.length);bags.forEach((b,i)=>setI(im,i,b[0],b[1],b[2],1,1,1,b[3]));im.castShadow=im.receiveShadow=SH;world.add(im);occluders.push(im);
-  boxes.push({x0:Math.min(x0,x1)-.3,x1:Math.max(x0,x1)+.3,z0:Math.min(z0,z1)-.3,z1:Math.max(z0,z1)+.3,top:ymax+.55,climb:true})}
- for(const o of OUTPOSTS){const y=H(o.x,o.z);
-  sandLine(o.x-6,o.z-7,o.x+6,o.z-7);sandLine(o.x-7,o.z-7,o.x-7,o.z+3);
-  gable(o.x+4,y,o.z+5,3.2,2.2,5,mTent,false);boxes.push({x0:o.x+2.4,x1:o.x+5.6,z0:o.z+2.5,z1:o.z+7.5,top:y+2.2});
-  addBox(o.x+3,y,o.z-2,1.1,1.1,1.1,mWood);addBox(o.x+4.2,y,o.z-1.6,.9,.9,.9,mWood)}
- /* resupply points: a green ring on the ground, with crates; standing still inside the ring refills ammunition */
- for(const r of RESUPPLY){const y=H(r.x,r.z),ring=new T.Mesh(new T.RingGeometry(2.6,3.1,36),new T.MeshBasicMaterial({color:0x8fe0a0,transparent:true,opacity:.7,depthWrite:false}));
-  ring.rotation.x=-Math.PI/2;ring.position.set(r.x,y+.07,r.z);world.add(ring);
-  const cm=L({color:0x4d5a2e,map:tWood});addBox(r.x+1.2,y,r.z+.9,.9,.9,.9,cm);addBox(r.x+1.9,y,r.z+1.7,.9,.9,.9,cm)}
- for(const g of TRIGS){const h0=H(g.x,g.z),conform=(geo,lift)=>{geo.rotateX(-Math.PI/2);const p=geo.attributes.position;for(let k=0;k<p.count;k++)p.setY(k,H(g.x+p.getX(k),g.z+p.getZ(k))-h0+lift);p.needsUpdate=true;geo.computeVertexNormals();return geo};add(new T.Mesh(conform(new T.CircleGeometry(g.r,28),.06),L({color:0x3d4a2e})),false,true).position.set(g.x,h0,g.z);add(new T.Mesh(conform(new T.RingGeometry(g.r-.35,g.r,28),.09),L({color:0xd8c24a})),false,true).position.set(g.x,h0,g.z)}
-}
+ world=new T.Group();scene.add(world);boxes=[];circles=[];occluders=[];targets=[];flags=[];VEG=[];RAMPS=[];FOOT=[];TREES=[];BUSH=[];POST=[];CARS=[];CITY=[];seed=1337;
+ MAT=mkMats();
+ OCC_CAT=new Map();const cat=(m,c,R,col)=>OCC_CAT.set(m,{c,R,col});
+ for(const m of MAT.walls)cat(m,'concrete',1e9,0xd8d2c0);cat(MAT.slab,'concrete',1e9,0xd8d2c0);cat(MAT.roof,'sheet',20000,0xffb050);
+ cat(MAT.wood,'wood',1500,0xc9a06a);cat(MAT.sand,'sand',12000,0xcbbf98);cat(MAT.tent,'fabric',600,0xbfb9a0);cat(MAT.metal,'metal',40000,0xffb050);cat(MAT.barrier,'concrete',1e9,0xd8d2c0);
+ ground();streets();
+ for(let j=0;j<BLK_C.length;j++)for(let i=0;i<BLK_C.length;i++)block(i,j,DISTRICT[j][i]);
+ /* trees and bushes as instanced meshes split into tiles for the distance cull; trunks collide through circles */
+ if(TREES.length){const im=new T.InstancedMesh(CANOPY_G,MAT.leaf,TREES.length),tr=new T.InstancedMesh(TRUNK_G,MAT.bark,TREES.length),M4=new T.Matrix4(),Q=new T.Quaternion(),S3=new T.Vector3(),P3=new T.Vector3();
+  TREES.forEach((t,i)=>{im.setMatrixAt(i,M4.compose(P3.set(t.x,FY+3.2*t.s,t.z),Q,S3.set(1.9*t.s,2.4*t.s,1.9*t.s)));tr.setMatrixAt(i,M4.compose(P3.set(t.x,FY+1.2*t.s,t.z),Q,S3.set(t.s,2.4*t.s,t.s)))});
+  im.castShadow=tr.castShadow=true;im.receiveShadow=true;world.add(tr);VEG.push(...tileIM(im))}
+ if(BUSH.length){const im=new T.InstancedMesh(CANOPY_G,MAT.leaf2,BUSH.length),M4=new T.Matrix4(),Q=new T.Quaternion(),S3=new T.Vector3(),P3=new T.Vector3();
+  BUSH.forEach((b,i)=>im.setMatrixAt(i,M4.compose(P3.set(b.x,FY+.5*b.s,b.z),Q,S3.set(.9*b.s,.7*b.s,.9*b.s))));im.receiveShadow=true;world.add(im);VEG.push(...tileIM(im))}
+ /* routes, triggers, resupply and capture-point rings: derived from the conquest points, so they are set here */
+ RESUPPLY=[{id:'nato-base',name:'NATO BASE',x:BASES.nato.x,z:BASES.nato.z,r:3.2},{id:'wp-base',name:'WARSAW PACT BASE',x:BASES.wp.x,z:BASES.wp.z,r:3.2},...CQ_POINTS.map(p=>({id:'pt'+p.name,name:'POINT '+p.name,x:p.x,z:p.z,r:3.2}))];
+ ROADS=[];for(const c of STREET_C){ROADS.push({t:'paved',p:[[-186,c],[186,c]]});ROADS.push({t:'paved',p:[[c,-186],[c,186]]})}
+ VILLAGE_PLANS=[[-186,-60,186,-60],[-186,60,186,60],[-60,-186,-60,186],[60,-186,60,186]].map(l=>({lane:l}));
+ for(const k of['nato','wp'])baseMarks(BASES[k]);
+ for(const p of CQ_POINTS)ringAt(p.x,p.z,0x8fe0a0,2.6,3.1);
+ for(const s of POST)world.add(s);POST.length=0}

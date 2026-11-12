@@ -57,7 +57,7 @@ function buildHi(kind,o){const root=new T.Group();const meshes=[];
  const add=(parent,geo,mat,part,x,y,z)=>{const me=new T.Mesh(geo,mat);me.position.set(x,y,z);me.castShadow=false;me.receiveShadow=false;me.userData.part=part;parent.add(me);meshes.push(me);return me};
  const put=(parent,me,part)=>{me.castShadow=false;me.receiveShadow=false;me.userData.part=part;parent.add(me);meshes.push(me);return me};
  const sold=kind==='soldier';const fm=sold?CH_MAT.fac[o.team]:null,uni=sold?fm.uni:o.shirt,pants=sold?fm.uni:o.pants;
- if(sold&&RIG_SRC[o.team]){const W=rigBuild(o.team,o.cls);root.add(W.root);W.meshes.forEach(m=>meshes.push(m));
+ if(sold&&RIG_SRC[o.team]){const W=rigBuild(o.team,o.cls);W.root.rotation.y=Math.PI;root.add(W.root);W.meshes.forEach(m=>meshes.push(m));
   return{root,meshes,arms:W.arms,legs:W.legs,pose:W.pose}}
  put(root,ell(pants,0,.98,0,.19,.1,.13),'body');                 /* hips */
  put(root,torsoMesh(uni,0,1.3,0),'body');                        /* chest */

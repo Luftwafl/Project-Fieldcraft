@@ -132,7 +132,7 @@ function cqShowResults(r){const el=document.getElementById('matchend');const nam
  document.getElementById('meAgain').style.display=r.mp?'none':'';
  el.classList.add('on')}
 function cqHide(){const el=document.getElementById('matchend');if(el)el.classList.remove('on')}
-/* top bar: tickets and the five points (controller colour; a bar shows capture progress) */
+/* top bar: tickets and the three points (controller colour; a bar shows capture progress) */
 function cqHud(S){const el=document.getElementById('cq');if(!el||!S)return;
  document.getElementById('cqCash').textContent='$'+WALLET.cash.toLocaleString('en-US');const t=(v)=>Math.ceil(v);document.getElementById('cqN').textContent=t(S.tickets.nato);document.getElementById('cqW').textContent=t(S.tickets.wp);
  const row=document.getElementById('cqP');if(row.childElementCount!==S.points.length){row.innerHTML='';for(const p of S.points){const d=document.createElement('div');d.className='cqpt';d.innerHTML='<span></span><i></i>';row.appendChild(d)}}
@@ -144,7 +144,7 @@ function allyDots(g,toM,C){const S=CQS||(NET&&NET.on&&NET.cq)||null;
  if(S)for(const p of S.points){const[x,y]=toM(p.x,p.z);g.beginPath();g.arc(x,y,5,0,7);g.fillStyle=p.owner==='nato'?'#6f9be0':p.owner==='wp'?'#e05a4a':'#c8c8b0';g.fill();g.strokeStyle='#10130a';g.lineWidth=1;g.stroke()}
  for(const a of allyMarks()){const[x,y]=toM(a.x,a.z);g.beginPath();g.arc(x,y,a.leader?4.5:3.2,0,7);g.fillStyle=CH.playerTeam==='nato'?'#8fb0ff':'#ff8a7a';g.fill();g.strokeStyle='#10130a';g.lineWidth=1;g.stroke();
   if(a.leader){g.strokeStyle='#ffd35a';g.lineWidth=1.5;g.beginPath();g.arc(x,y,7,0,7);g.stroke()}}}
-/* full map: the whole battlefield with capture points, bases, allies and trucks. Enemies are not shown. */
+/* full map: the whole battlefield with capture points, bases and allies. Enemies are not shown. */
 let FMAP=false;
 function allyMarks(){const out=[];for(const c of CH.all)if(c.kind==='soldier'&&c.team===CH.playerTeam&&c.state!=='dead')out.push({x:c.x,z:c.z,leader:!!c.isLeader,name:''});
  if(NET&&NET.on)for(const a of NET.players.values())if(a.id!==NET.id&&a.alive&&a.team===CH.playerTeam)out.push({x:a.x,z:a.z,leader:false,name:a.name,human:true});return out}
@@ -164,6 +164,5 @@ function drawFullMap(){if(!FMAP)return;const cv=document.getElementById('fmc');c
  for(const a of allyMarks()){const x=px(a.x),z=pz(a.z);g.beginPath();g.arc(x,z,a.leader?6:4.5,0,7);g.fillStyle=CH.playerTeam==='nato'?'#8fb0ff':'#ff8a7a';g.fill();
   g.lineWidth=1.5;g.strokeStyle='#10130a';g.stroke();if(a.leader){g.strokeStyle='#ffd35a';g.lineWidth=2;g.beginPath();g.arc(x,z,9,0,7);g.stroke()}
   if(a.human&&a.name){g.fillStyle='#f0ecd0';g.font='11px sans-serif';g.fillText(a.name,x,z-9);g.font='bold 12px sans-serif'}}
- for(let i=0;i<TRUCKS.length;i++){const t=TRUCKS[i];if(!t.g)continue;g.fillStyle=i===0?'#c9bd6a':'#d0785a';g.fillRect(px(t.x)-4,pz(t.z)-6,8,12)}
  g.save();g.translate(px(P.x),pz(P.z));g.rotate(Math.atan2(-Math.sin(P.yaw),-Math.cos(P.yaw))+Math.PI);g.fillStyle='#ffd35a';g.beginPath();g.moveTo(0,-9);g.lineTo(6,6);g.lineTo(0,3);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
  const lg=document.getElementById('fmLegend');if(lg)lg.textContent='Blue and red dots: your side. Gold ring: squad leader. Enemy positions are not shown.'}
