@@ -243,7 +243,7 @@ const KIT_KG=0.25, BASE_KG={rifleman:2.2,assault:2.0,support:2.8}; /* webbing, h
 const magKg=d=>0.1+0.009*d.mag; /* 30 rounds about 0.37 kg, 15 rounds about 0.235 kg */
 function loadKg(){const F=FACTIONS[sel.f],pid=F.prim[sel.c],sid=F.side;
  return (GUN_KG[pid]||0)+(GUN_KG[sid]||0)+sel.mags*magKg(WD[pid])+sel.pmags*magKg(WD[sid])+sel.kits*KIT_KG+(BASE_KG[sel.c]||2)}
-/* penalties start above 4 kg: walking 1.2 % per kg, sprinting 1.8 % per kg, jumping 1 % per kg */
-const loadPen=kg=>({walk:Math.min(40,1.2*Math.max(0,kg-4)),sprint:Math.min(60,1.8*Math.max(0,kg-4)),jump:Math.min(30,Math.max(0,kg-4))});
+/* penalties start above 4 kg. At 7.2 kg: walking -4 %, sprinting -6 %, jumping -3.2 % */
+const loadPen=kg=>({walk:Math.min(40,4/3.2*Math.max(0,kg-4)),sprint:Math.min(60,6/3.2*Math.max(0,kg-4)),jump:Math.min(30,Math.max(0,kg-4))});
 let LOAD={kg:0,walk:1,sprint:1,jump:1,p:{walk:0,sprint:0,jump:0}};
 function setLoad(){const kg=loadKg(),p=loadPen(kg);LOAD={kg,walk:1-p.walk/100,sprint:1-p.sprint/100,jump:1-p.jump/100,p};return LOAD}
