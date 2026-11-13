@@ -207,7 +207,7 @@ function openAdmin(){if(!NET.admin){setNotice('ADMIN ONLY',1.2);return}netAdminT
  if(document.getElementById('admPanel').classList.contains('on')&&document.pointerLockElement)document.exitPointerLock()}
 
 /* ---------- class list with icons, and the equipment steppers (magazines, pistol mags, first aid kits) ---------- */
-const POUCH_MAX=17;
+const POUCH_MAX=18;
 const CLS_GROUP={rifleman:'INFANTRY',assault:'INFANTRY',support:'SUPPORT'};
 const CLS_ICON={
  rifleman:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
@@ -238,9 +238,9 @@ function eqInit(){const el=document.getElementById('eqRows');if(!el)return;
  el.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b&&!b.disabled)eqStep(b.dataset.k,+b.dataset.d)})}
 
 /* ---------- weight: what you carry slows walking, sprinting and jumping (stamina is gone) ---------- */
-const GUN_KG={m16a2:3.3,m60e3:10.5,m9:0.95,ak74:3.4,rpk74:4.7,makarov:0.73};
-const KIT_KG=0.25, BASE_KG={rifleman:2.2,assault:2.0,support:2.8}; /* webbing, helmet, canteen; support adds the radio */
-const magKg=d=>0.1+0.009*d.mag; /* 30 rounds about 0.37 kg, 15 rounds about 0.235 kg */
+const GUN_KG={m16a2:0.6,m60e3:1.0,m9:0.2,ak74:0.6,rpk74:0.8,makarov:0.2};
+const KIT_KG=0.25, BASE_KG={rifleman:0.43,assault:0.4,support:0.5}; /* webbing, helmet, canteen; support adds the radio */
+const magKg=d=>d.kind==='pistol'?0.38:0.37; /* per magazine, from the role screen */
 function loadKg(){const F=FACTIONS[sel.f],pid=F.prim[sel.c],sid=F.side;
  return (GUN_KG[pid]||0)+(GUN_KG[sid]||0)+sel.mags*magKg(WD[pid])+sel.pmags*magKg(WD[sid])+sel.kits*KIT_KG+(BASE_KG[sel.c]||2)}
 /* penalties start above 4 kg. At 7.2 kg: walking -4 %, sprinting -6 %, jumping -3.2 % */
