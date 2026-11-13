@@ -24,7 +24,7 @@ const P={x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:0,on:true,stam:100,exh:false,sd:
 P.leanV=0;P.leanDir=0;P.leanT=0;P.leanLim=0;P.latch=0;P.prevL=false;P.prevR=false;P.pendL=false;P.pendR=false; /* Beta 0.4.0-pre1: tactical lean state (camera offset only) */
 const W={queue:null,slots:[],cur:0,act:'ready',t:0,rs:0,removed:false,inserted:false,pend:0,ads:false,adsK:0,trig:false,dry:false,cd:0,notice:'',noticeT:0};
 const RFR=[.16,.30,.38,.16]; /* reload stages: start, remove magazine, insert magazine, finish */
-const sel={f:'nato',c:'rifleman',kits:DMG.DEF_KITS};
+const sel={f:'nato',c:'rifleman',kits:DMG.DEF_KITS,mags:CLASSES.rifleman.mags,pmags:SIDE_MAGS};
 const joy={id:-1,x:0,y:0},held={},tHeld={};
 let state='menu',ready=false,locked=false,resScale=1,last=performance.now();
 let jumpReq=false,dbgSp=0,dbgCap=0,sprintLatch=false,shots=0,hits=0,kick=0,rcP=0,rcY=0,flashT=0,lookDX=0,sway=0,sprintK=0;
@@ -160,7 +160,7 @@ function respawn(sp){bullets.length=0;for(const m of TRC)m.visible=false;trcUsed
  targets.forEach(t=>{t.state=0;t.ang=0;t.hinge.rotation.x=0;t.fl=0;t.mat.color.setHex(0xffffff)})}
 function deploy(again){const F=FACTIONS[sel.f],C=CLASSES[sel.c];if(RIG_SRC[sel.f]){fpRigBuild(sel.f,sel.c);for(const k in WM)WM[k].arms.visible=false}GM.slv.color.setHex(0xffffff);GM.slv.map=CAMO[sel.f];GM.slv.needsUpdate=true;$('clNote').textContent='';
  const mk=(id,mags)=>{const d=WD[id],n=(d.reserveMags||mags)*d.mag;return{id,def:d,mag:d.mag,res:n,resMax:n,mi:Math.max(0,d.modes.indexOf('AUTO'))}};
- W.slots=[mk(F.prim[sel.c],C.mags),mk(F.side,SIDE_MAGS)];W.cur=0;W.pend=0;applyOptic(F.prim[sel.c]);showModel(0);
+ W.slots=[mk(F.prim[sel.c],sel.mags),mk(F.side,sel.pmags)];W.cur=0;W.pend=0;applyOptic(F.prim[sel.c]);showModel(0);
  Object.assign(W,{queue:null,act:'draw',t:0,rs:0,ads:false,adsK:0,trig:false,dry:false,cd:0,noticeT:0});kick=0;sprintLatch=false;$('bs').classList.remove('on');
  respawn(BASES[F.base].spawn);if(!NET.on&&!again){spawnChars(F.base);cqBeginSP()}}
 /* death, the downed state and revive: see damage.js */
@@ -323,7 +323,7 @@ function renderClass(){kitShow();const F=FACTIONS[sel.f],C=CLASSES[sel.c],P1=WD[
  const wl=(w,mags)=>w.name+'<small>'+w.cal+' - '+w.mag+'-round magazine, '+(w.reserveMags||mags)*w.mag+' reserve - '+w.modes.map(x=>MODE_LABEL[x]).join(' / ')+'</small>';
  $('cf-sheet').innerHTML='<div class="sr"><i>Faction</i><span>'+F.name+'</span></div><div class="sr"><i>Class</i><span>'+C.name+'<small>Class limit: '+lim+' (not enforced)</small></span></div>'+
   '<div class="sr"><i>Primary</i><span>'+wl(P1,C.mags)+'</span></div><div class="sr"><i>Sidearm</i><span>'+wl(S1,SIDE_MAGS)+'</span></div><div class="sr"><i>Equipment</i><span>'+C.gear[sel.f]+'</span></div>';
- $('bDeploy').textContent='DEPLOY AS '+C.name.toUpperCase();$('bDeploy').classList.toggle('dis',!classAvailable(sel.c))}
+ $('bDeploy').textContent='DEPLOY AS '+C.name.toUpperCase();$('bDeploy').classList.toggle('dis',!classAvailable(sel.c));renderEquip()}
 function renderControls(){const kb=$('kb');kb.innerHTML='';$('kbw').classList.toggle('hide',touch);$('tcw').classList.toggle('hide',!touch);
  $('gLean').textContent='Lean: '+(SET.leanMode==='toggle'?'TOGGLE (tap to lean, tap again to stop)':'HOLD (lean while key is held)');
  const sv=$('sens');sv.value=Math.round((touch?SET.touch:SET.mouse)*100);$('sensV').textContent=sv.value+'%';$('sensL').textContent=touch?'Touch look':'Mouse look';
@@ -354,7 +354,8 @@ $('qlow').classList.toggle('sel',SET.q==='low');$('qmed').classList.toggle('sel'
 function syncAudio(){$('aMute').textContent='Mute: '+(SET.mute?'ON':'OFF');for(const[id,k]of[['vMaster','master'],['vWpn','wpn'],['vFx','fx']]){const el=$(id);el.value=Math.round(SET[k]*100);el.nextElementSibling.textContent=el.value+'%'}}
 /* wire up menu buttons */
 for(const b of document.querySelectorAll('#menu [data-f]')){b.onclick=()=>{sel.f=b.dataset.f;view('class','faction')};b.onmouseenter=()=>setPreview(b.dataset.f,sel.c)}
-for(const b of document.querySelectorAll('#menu .tab'))b.onclick=()=>{sel.c=b.dataset.c;renderClass()};
+renderClassList();eqInit();
+for(const b of document.querySelectorAll('#menu .tab'))b.onclick=()=>{sel.c=b.dataset.c;sel.mags=CLASSES[sel.c].mags;renderClass()};
 for(const b of document.querySelectorAll('#menu [data-go]'))b.onclick=()=>view(b.dataset.go,ui.v);
 for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view(ui.prev);
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');

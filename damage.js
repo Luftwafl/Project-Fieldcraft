@@ -146,5 +146,3 @@ function playerDied(rec){P.hp=0;P.down=false;P.reviver=null;hideDown();clearInpu
 /* screen buttons */
 $('dnGive').onclick=giveUp;
 $('dthOk').onclick=hideDeath;
-$('kitMinus').onclick=()=>kitStep(-1);
-$('kitPlus').onclick=()=>kitStep(1);

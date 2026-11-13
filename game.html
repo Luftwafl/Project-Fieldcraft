@@ -293,6 +293,19 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 #bmed span{position:absolute;right:-4px;top:-4px;min-width:20px;height:20px;border-radius:10px;background:#8a2a1e;font-size:12px;line-height:20px;text-align:center}
 .kit-row{display:flex;align-items:center;gap:10px;justify-content:center;margin:8px 0}
 .kit-row b{min-width:24px;font-size:18px}
+.rl-h{font-size:11px;letter-spacing:.14em;color:var(--mut);margin-top:4px}
+.rlist .tab{display:flex;align-items:center;gap:10px;justify-content:flex-start;text-align:left;flex:none}
+.tab .ic{width:22px;height:22px;flex:0 0 22px;display:inline-block}.tab .ic svg{width:100%;height:100%}
+.tab .nm{flex:1;font-weight:600;letter-spacing:.05em}
+.tab .st{font-size:11px;color:#c4e05a;letter-spacing:.08em}
+.eq{display:flex;flex-direction:column;gap:6px}
+.eq-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--ln);background:rgba(14,16,10,.6)}
+.eq-row .lb{flex:1;min-width:0}.eq-row .lb b{display:block;font-size:13px;letter-spacing:.06em}.eq-row .lb small{font-size:10px;color:var(--mut)}
+.eq-row .val{min-width:28px;text-align:center;font-size:18px;font-weight:600}
+.eq-row .mb{min-height:34px;width:38px;padding:0}
+.pouch-h{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);letter-spacing:.1em;margin-top:2px}
+.pouch-bar{display:grid;grid-template-columns:repeat(17,1fr);gap:2px}
+.pouch-bar i{height:8px;background:var(--ln)}.pouch-bar i.on{background:#c4e05a}
 .cl p.fine{font-size:8px;opacity:.4;margin-top:14px}
 </style></head>
 <body data-s="menu" data-v="">
@@ -404,14 +417,10 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
  <section id="s-class">
   <div class="brand"><small id="cf-f"></small><h2>SELECT ROLE</h2></div>
   <div class="split">
-   <div class="rlist">
-    <button class="mb tab" data-c="rifleman">Rifleman</button>
-    <button class="mb tab" data-c="assault">Assault</button>
-    <button class="mb tab" data-c="support">Support</button>
-   </div>
+   <div class="rlist" id="rlist"></div>
    <div class="loadout">
     <div class="sheet" id="cf-sheet"></div>
-    <div class="kit-row"><span>MEDKITS</span><button class="mb" id="kitMinus">&minus;</button><b id="kitN">2</b><button class="mb" id="kitPlus">+</button></div>
+    <div class="eq" id="eqRows"></div>
     <button class="mb go" id="bDeploy">Deploy</button>
     <button class="mb" id="bAlly">Spawn on ally</button>
    </div>
@@ -495,6 +504,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
   <p><b>Inventory.</b> Press I (or INV on a phone) to see your loadout, medkits and cash. Esc closes it.</p>
   <p><b>Admin panel key.</b> Admins can press O to open the admin panel.</p>
   <p><b>Admin guns.</b> Admins can pick any gun from the inventory. It replaces the active slot.</p>
+  <p><b>New role screen.</b> Roles are grouped with icons, and the loadout has steppers for magazines, pistol magazines and first aid kits, limited by 17 pouches.</p>
   <p><b>New map: a 450 m urban city.</b> The battlefield is now a city with five districts: Downtown with skyscrapers and office blocks, Residential apartment blocks and courtyards, Commercial shops and car parks, Industrial warehouses and yards, and open areas of parks, bus stops and abandoned cars.</p>
   <p><b>Enterable buildings, ramps not stairs.</b> Most buildings have a ground door and open interiors with rooms and corridors. Floors connect by ramps, and the upper floors and roofs are reachable on foot.</p>
   <p><b>Windows break.</b> Each window is a hole in the wall with a glass pane in it. A bullet breaks the pane and carries on through the opening.</p>
@@ -638,6 +648,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
   <div class="cl">
   <p><b>Owner and gun models:</b> Luftwafl</p>
   <p><b>Playtesters:</b> Anthony, David, Arjun, Max, Elliot</p>
+  <p><b>Inspiration:</b> Third War</p>
   <p class="fine">Head coder: Claude</p>
   </div>
  </section>
@@ -1916,8 +1927,6 @@ function playerDied(rec){P.hp=0;P.down=false;P.reviver=null;hideDown();clearInpu
 /* screen buttons */
 $('dnGive').onclick=giveUp;
 $('dthOk').onclick=hideDeath;
-$('kitMinus').onclick=()=>kitStep(-1);
-$('kitPlus').onclick=()=>kitStep(1);
 /* Conquest (capture the area) rules. Pure data and functions: used by the browser game (single player)
    and by the multiplayer server, so both follow the same rules. */
 const CQ={R:22,CAP_T:12,TICKETS:300,DRAIN:0.5,SWEEP_T:20,TICK:0.25};
@@ -2166,6 +2175,35 @@ function chatAdd(name,team,text){const L=document.getElementById('chatLog');if(!
 function chatClear(){const L=document.getElementById('chatLog');if(L)L.textContent=''}
 function openAdmin(){if(!NET.admin){setNotice('ADMIN ONLY',1.2);return}netAdminToggle();
  if(document.getElementById('admPanel').classList.contains('on')&&document.pointerLockElement)document.exitPointerLock()}
+
+/* ---------- class list with icons, and the equipment steppers (magazines, pistol mags, first aid kits) ---------- */
+const POUCH_MAX=17;
+const CLS_GROUP={rifleman:'INFANTRY',assault:'INFANTRY',support:'SUPPORT'};
+const CLS_ICON={
+ rifleman:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+ assault:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="2"/></svg>',
+ support:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M2 8h20M2 16h20" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>'};
+const EQ_RANGE={mags:[1,10],pmags:[0,6],kits:[0,DMG.MAX_KITS]};
+const pouchUse=()=>sel.mags+sel.pmags+sel.kits;
+function renderClassList(){const L=document.getElementById('rlist');if(!L)return;L.innerHTML='';let last=null;
+ for(const id in CLASSES){const g=CLS_GROUP[id]||'OTHER';
+  if(g!==last){const h=document.createElement('div');h.className='rl-h';h.textContent=g;L.appendChild(h);last=g}
+  const b=document.createElement('button');b.className='mb tab';b.dataset.c=id;
+  b.innerHTML='<span class="ic">'+CLS_ICON[id]+'</span><span class="nm">'+CLASSES[id].name+'</span><span class="st"></span>';L.appendChild(b)}}
+function eqStep(k,d){const[lo,hi]=EQ_RANGE[k],cur=sel[k],n=Math.max(lo,Math.min(hi,cur+d));
+ if(n>cur&&pouchUse()+(n-cur)>POUCH_MAX)return;sel[k]=n;kitShow();renderEquip()}
+function renderEquip(){const el=document.getElementById('eqRows');if(!el)return;
+ for(const b of document.querySelectorAll('.tab')){const s=b.querySelector('.st');if(s)s.textContent=b.dataset.c===sel.c?'SELECTED':''}
+ const F=FACTIONS[sel.f],P1=WD[F.prim[sel.c]],S1=WD[F.side],used=pouchUse();
+ const rows=[['mags','MAGAZINES',P1.mag+' rounds each',sel.mags],['pmags','PISTOL MAGAZINES',S1.mag+' rounds each',sel.pmags],['kits','FIRST AID KITS','1 use each',sel.kits]];
+ el.innerHTML=rows.map(([k,n,s,v])=>{const[lo,hi]=EQ_RANGE[k];
+   return '<div class="eq-row"><div class="lb"><b>'+n+'</b><small>'+s+'</small></div>'+
+   '<button class="mb" data-k="'+k+'" data-d="-1"'+(v<=lo?' disabled':'')+'>&minus;</button><span class="val">'+v+'</span>'+
+   '<button class="mb" data-k="'+k+'" data-d="1"'+(v>=hi||used>=POUCH_MAX?' disabled':'')+'>+</button></div>'}).join('')+
+  '<div class="pouch-h"><span>POUCHES</span><span>'+used+' / '+POUCH_MAX+'</span></div><div class="pouch-bar">'+
+  Array.from({length:POUCH_MAX},(_,i)=>'<i class="'+(i<used?'on':'')+'"></i>').join('')+'</div>'}
+function eqInit(){const el=document.getElementById('eqRows');if(!el)return;
+ el.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b&&!b.disabled)eqStep(b.dataset.k,+b.dataset.d)})}
 /* ---------- multiplayer client: server browser, relay of position, shots and hits, remote players, admin panel ---------- */
 const NET={mode:'sp',on:false,ws:null,url:'',room:'',roomName:'',id:null,admin:false,players:new Map(),avatars:new Map(),cq:null,sendT:0,cqT:0,
  match:{captures:0},target:null,lastNotice:0};
@@ -2364,7 +2402,7 @@ const P={x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:0,on:true,stam:100,exh:false,sd:
 P.leanV=0;P.leanDir=0;P.leanT=0;P.leanLim=0;P.latch=0;P.prevL=false;P.prevR=false;P.pendL=false;P.pendR=false; /* Beta 0.4.0-pre1: tactical lean state (camera offset only) */
 const W={queue:null,slots:[],cur:0,act:'ready',t:0,rs:0,removed:false,inserted:false,pend:0,ads:false,adsK:0,trig:false,dry:false,cd:0,notice:'',noticeT:0};
 const RFR=[.16,.30,.38,.16]; /* reload stages: start, remove magazine, insert magazine, finish */
-const sel={f:'nato',c:'rifleman',kits:DMG.DEF_KITS};
+const sel={f:'nato',c:'rifleman',kits:DMG.DEF_KITS,mags:CLASSES.rifleman.mags,pmags:SIDE_MAGS};
 const joy={id:-1,x:0,y:0},held={},tHeld={};
 let state='menu',ready=false,locked=false,resScale=1,last=performance.now();
 let jumpReq=false,dbgSp=0,dbgCap=0,sprintLatch=false,shots=0,hits=0,kick=0,rcP=0,rcY=0,flashT=0,lookDX=0,sway=0,sprintK=0;
@@ -2500,7 +2538,7 @@ function respawn(sp){bullets.length=0;for(const m of TRC)m.visible=false;trcUsed
  targets.forEach(t=>{t.state=0;t.ang=0;t.hinge.rotation.x=0;t.fl=0;t.mat.color.setHex(0xffffff)})}
 function deploy(again){const F=FACTIONS[sel.f],C=CLASSES[sel.c];if(RIG_SRC[sel.f]){fpRigBuild(sel.f,sel.c);for(const k in WM)WM[k].arms.visible=false}GM.slv.color.setHex(0xffffff);GM.slv.map=CAMO[sel.f];GM.slv.needsUpdate=true;$('clNote').textContent='';
  const mk=(id,mags)=>{const d=WD[id],n=(d.reserveMags||mags)*d.mag;return{id,def:d,mag:d.mag,res:n,resMax:n,mi:Math.max(0,d.modes.indexOf('AUTO'))}};
- W.slots=[mk(F.prim[sel.c],C.mags),mk(F.side,SIDE_MAGS)];W.cur=0;W.pend=0;applyOptic(F.prim[sel.c]);showModel(0);
+ W.slots=[mk(F.prim[sel.c],sel.mags),mk(F.side,sel.pmags)];W.cur=0;W.pend=0;applyOptic(F.prim[sel.c]);showModel(0);
  Object.assign(W,{queue:null,act:'draw',t:0,rs:0,ads:false,adsK:0,trig:false,dry:false,cd:0,noticeT:0});kick=0;sprintLatch=false;$('bs').classList.remove('on');
  respawn(BASES[F.base].spawn);if(!NET.on&&!again){spawnChars(F.base);cqBeginSP()}}
 /* death, the downed state and revive: see damage.js */
@@ -2663,7 +2701,7 @@ function renderClass(){kitShow();const F=FACTIONS[sel.f],C=CLASSES[sel.c],P1=WD[
  const wl=(w,mags)=>w.name+'<small>'+w.cal+' - '+w.mag+'-round magazine, '+(w.reserveMags||mags)*w.mag+' reserve - '+w.modes.map(x=>MODE_LABEL[x]).join(' / ')+'</small>';
  $('cf-sheet').innerHTML='<div class="sr"><i>Faction</i><span>'+F.name+'</span></div><div class="sr"><i>Class</i><span>'+C.name+'<small>Class limit: '+lim+' (not enforced)</small></span></div>'+
   '<div class="sr"><i>Primary</i><span>'+wl(P1,C.mags)+'</span></div><div class="sr"><i>Sidearm</i><span>'+wl(S1,SIDE_MAGS)+'</span></div><div class="sr"><i>Equipment</i><span>'+C.gear[sel.f]+'</span></div>';
- $('bDeploy').textContent='DEPLOY AS '+C.name.toUpperCase();$('bDeploy').classList.toggle('dis',!classAvailable(sel.c))}
+ $('bDeploy').textContent='DEPLOY AS '+C.name.toUpperCase();$('bDeploy').classList.toggle('dis',!classAvailable(sel.c));renderEquip()}
 function renderControls(){const kb=$('kb');kb.innerHTML='';$('kbw').classList.toggle('hide',touch);$('tcw').classList.toggle('hide',!touch);
  $('gLean').textContent='Lean: '+(SET.leanMode==='toggle'?'TOGGLE (tap to lean, tap again to stop)':'HOLD (lean while key is held)');
  const sv=$('sens');sv.value=Math.round((touch?SET.touch:SET.mouse)*100);$('sensV').textContent=sv.value+'%';$('sensL').textContent=touch?'Touch look':'Mouse look';
@@ -2694,7 +2732,8 @@ $('qlow').classList.toggle('sel',SET.q==='low');$('qmed').classList.toggle('sel'
 function syncAudio(){$('aMute').textContent='Mute: '+(SET.mute?'ON':'OFF');for(const[id,k]of[['vMaster','master'],['vWpn','wpn'],['vFx','fx']]){const el=$(id);el.value=Math.round(SET[k]*100);el.nextElementSibling.textContent=el.value+'%'}}
 /* wire up menu buttons */
 for(const b of document.querySelectorAll('#menu [data-f]')){b.onclick=()=>{sel.f=b.dataset.f;view('class','faction')};b.onmouseenter=()=>setPreview(b.dataset.f,sel.c)}
-for(const b of document.querySelectorAll('#menu .tab'))b.onclick=()=>{sel.c=b.dataset.c;renderClass()};
+renderClassList();eqInit();
+for(const b of document.querySelectorAll('#menu .tab'))b.onclick=()=>{sel.c=b.dataset.c;sel.mags=CLASSES[sel.c].mags;renderClass()};
 for(const b of document.querySelectorAll('#menu [data-go]'))b.onclick=()=>view(b.dataset.go,ui.v);
 for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view(ui.prev);
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');

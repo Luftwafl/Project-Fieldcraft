@@ -205,3 +205,32 @@ function chatAdd(name,team,text){const L=document.getElementById('chatLog');if(!
 function chatClear(){const L=document.getElementById('chatLog');if(L)L.textContent=''}
 function openAdmin(){if(!NET.admin){setNotice('ADMIN ONLY',1.2);return}netAdminToggle();
  if(document.getElementById('admPanel').classList.contains('on')&&document.pointerLockElement)document.exitPointerLock()}
+
+/* ---------- class list with icons, and the equipment steppers (magazines, pistol mags, first aid kits) ---------- */
+const POUCH_MAX=17;
+const CLS_GROUP={rifleman:'INFANTRY',assault:'INFANTRY',support:'SUPPORT'};
+const CLS_ICON={
+ rifleman:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+ assault:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="2"/></svg>',
+ support:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M2 8h20M2 16h20" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>'};
+const EQ_RANGE={mags:[1,10],pmags:[0,6],kits:[0,DMG.MAX_KITS]};
+const pouchUse=()=>sel.mags+sel.pmags+sel.kits;
+function renderClassList(){const L=document.getElementById('rlist');if(!L)return;L.innerHTML='';let last=null;
+ for(const id in CLASSES){const g=CLS_GROUP[id]||'OTHER';
+  if(g!==last){const h=document.createElement('div');h.className='rl-h';h.textContent=g;L.appendChild(h);last=g}
+  const b=document.createElement('button');b.className='mb tab';b.dataset.c=id;
+  b.innerHTML='<span class="ic">'+CLS_ICON[id]+'</span><span class="nm">'+CLASSES[id].name+'</span><span class="st"></span>';L.appendChild(b)}}
+function eqStep(k,d){const[lo,hi]=EQ_RANGE[k],cur=sel[k],n=Math.max(lo,Math.min(hi,cur+d));
+ if(n>cur&&pouchUse()+(n-cur)>POUCH_MAX)return;sel[k]=n;kitShow();renderEquip()}
+function renderEquip(){const el=document.getElementById('eqRows');if(!el)return;
+ for(const b of document.querySelectorAll('.tab')){const s=b.querySelector('.st');if(s)s.textContent=b.dataset.c===sel.c?'SELECTED':''}
+ const F=FACTIONS[sel.f],P1=WD[F.prim[sel.c]],S1=WD[F.side],used=pouchUse();
+ const rows=[['mags','MAGAZINES',P1.mag+' rounds each',sel.mags],['pmags','PISTOL MAGAZINES',S1.mag+' rounds each',sel.pmags],['kits','FIRST AID KITS','1 use each',sel.kits]];
+ el.innerHTML=rows.map(([k,n,s,v])=>{const[lo,hi]=EQ_RANGE[k];
+   return '<div class="eq-row"><div class="lb"><b>'+n+'</b><small>'+s+'</small></div>'+
+   '<button class="mb" data-k="'+k+'" data-d="-1"'+(v<=lo?' disabled':'')+'>&minus;</button><span class="val">'+v+'</span>'+
+   '<button class="mb" data-k="'+k+'" data-d="1"'+(v>=hi||used>=POUCH_MAX?' disabled':'')+'>+</button></div>'}).join('')+
+  '<div class="pouch-h"><span>POUCHES</span><span>'+used+' / '+POUCH_MAX+'</span></div><div class="pouch-bar">'+
+  Array.from({length:POUCH_MAX},(_,i)=>'<i class="'+(i<used?'on':'')+'"></i>').join('')+'</div>'}
+function eqInit(){const el=document.getElementById('eqRows');if(!el)return;
+ el.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b&&!b.disabled)eqStep(b.dataset.k,+b.dataset.d)})}
