@@ -80,7 +80,7 @@ body.touch #br svg{margin:0}
 #bs{right:186px;bottom:72px;width:56px;height:56px}
 #bw{right:176px;bottom:136px;width:52px;height:52px}
 #bm{right:252px;bottom:28px;width:50px;height:50px}
-#bp{right:10px;top:8px;width:44px;height:44px;font-size:14px}
+#bp{right:10px;top:8px;width:44px;height:44px;font-size:14px;z-index:20}
 /* ---------- menus ---------- */
 #menu{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:flex-start;padding:0 4vw;background:linear-gradient(90deg,rgba(9,11,7,.92) 0,rgba(9,11,7,.8) 52%,rgba(9,11,7,.12) 100%)}
 #menu section{display:none;flex-direction:column;gap:9px;width:min(540px,92vw);max-height:96vh;overflow:auto;padding:2px 4px 2px 0;touch-action:pan-y}
@@ -158,7 +158,7 @@ body[data-s=play] #cq{display:flex}
 .cqpt{position:relative;min-width:34px;height:30px;background:rgba(9,11,7,.72);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .cqpt span{position:relative;font-weight:700;font-size:13px}.cqpt i{position:absolute;left:0;bottom:0;height:3px;background:#e0c060;width:0}
 .cqpt.nato{border-color:#6f9be0;background:rgba(40,70,120,.8)}.cqpt.wp{border-color:#e05a4a;background:rgba(120,40,34,.8)}
-#admBtn{position:fixed;right:8px;top:48px;z-index:9;min-height:34px;padding:4px 12px;font-size:11px}
+#admBtn{position:fixed;right:8px;top:60px;z-index:9;min-height:34px;padding:4px 12px;font-size:11px}
 #scopeov{position:fixed;inset:0;z-index:4;display:none;pointer-events:none}
 #scopeov.on{display:block}
 #scopeov .sc-fade{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 40vmin,#000 41vmin)}
@@ -171,9 +171,9 @@ body[data-s=play] #cq{display:flex}
 #fmc{background:#14180f;border:1px solid var(--ln)}
 .fm-foot{display:flex;gap:12px;align-items:center;width:100%;justify-content:space-between;font-size:11px;color:var(--mut)}
 .fm-foot .mb{min-height:36px;width:auto;padding:4px 14px}
-#inv{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.86)}
+#inv{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.5);pointer-events:none}
 #inv.on{display:flex}
-.inv-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:14px 16px;width:min(460px,92vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.inv-box{pointer-events:auto;background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:14px 16px;width:min(460px,92vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
 .inv-t{font-size:20px;letter-spacing:.25em;font-weight:600}
 .inv-sec{display:flex;flex-direction:column;gap:6px}
 .inv-h{font-size:11px;letter-spacing:.12em;color:var(--mut)}
@@ -184,7 +184,7 @@ body[data-s=play] #cq{display:flex}
 .inv-row i{font-style:normal;color:var(--mut)}
 .inv-guns{display:flex;flex-wrap:wrap;gap:6px}
 .inv-guns .mb{min-height:32px;width:auto;padding:4px 10px;font-size:11px}
-#tbtns{position:fixed;right:8px;top:8px;z-index:9;display:none;gap:6px;pointer-events:auto}
+#tbtns{position:fixed;right:62px;top:8px;z-index:9;display:none;gap:6px;pointer-events:auto}
 body.touch #tbtns{display:flex}
 #tbtns .mb{min-height:34px;padding:4px 12px;font-size:11px}
 #chatLog{position:fixed;left:8px;bottom:150px;width:min(340px,58vw);max-height:30vh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;gap:2px;font-size:12px;text-shadow:0 1px 2px #000;pointer-events:none}
@@ -194,8 +194,8 @@ body.touch #tbtns{display:flex}
 .cl-line b{color:#eef0dc;font-weight:600}
 .cl-line.nato b{color:#9fc4ff}.cl-line.wp b{color:#ff9d8a}
 #chatBox{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:10;display:none;width:min(520px,92vw)}
-#chatBox.on{display:block}
-#chatIn{width:100%;min-height:40px;background:rgba(14,16,10,.96);color:#eef0dc;border:1px solid var(--ln);padding:6px 10px;font:inherit;font-size:14px}
+#chatBox.on{display:flex;gap:6px}
+#chatIn{flex:1;min-width:0;min-height:40px;background:rgba(14,16,10,.96);color:#eef0dc;border:1px solid var(--ln);padding:6px 10px;font:inherit;font-size:14px}
 #matchend{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(5,7,4,.6)}
 #matchend.on{display:flex}
 .me-box{background:rgba(14,16,10,.96);border:1px solid var(--ln);padding:18px 22px;width:min(440px,92vw);display:flex;flex-direction:column;gap:10px;text-align:center}
@@ -332,7 +332,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 <div id="scopeov"><div class="sc-fade"></div><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="79" fill="none" stroke="#000" stroke-width="2.5"/><circle cx="100" cy="100" r="82" fill="none" stroke="#2a2c28" stroke-width="1.5" opacity=".7"/><path d="M18 100H182M100 18V182" stroke="#050605" stroke-width=".6"/><path d="M92 100H108M100 92V108" stroke="#050605" stroke-width="1.8"/><circle cx="28" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="28" r="0.7" fill="#050605"/><circle cx="36" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="36" r="1.1" fill="#050605"/><text x="36" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="37.2" font-size="3.4" fill="#050605">16</text><circle cx="44" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="44" r="0.7" fill="#050605"/><circle cx="52" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="52" r="1.1" fill="#050605"/><text x="52" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="53.2" font-size="3.4" fill="#050605">12</text><circle cx="60" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="60" r="0.7" fill="#050605"/><circle cx="68" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="68" r="1.1" fill="#050605"/><text x="68" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="69.2" font-size="3.4" fill="#050605">8</text><circle cx="76" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="76" r="0.7" fill="#050605"/><circle cx="84" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="84" r="1.1" fill="#050605"/><text x="84" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="85.2" font-size="3.4" fill="#050605">4</text><circle cx="92" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="92" r="0.7" fill="#050605"/><circle cx="108" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="108" r="0.7" fill="#050605"/><circle cx="116" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="116" r="1.1" fill="#050605"/><text x="116" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">4</text><text x="104.2" y="117.2" font-size="3.4" fill="#050605">4</text><circle cx="124" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="124" r="0.7" fill="#050605"/><circle cx="132" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="132" r="1.1" fill="#050605"/><text x="132" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">8</text><text x="104.2" y="133.2" font-size="3.4" fill="#050605">8</text><circle cx="140" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="140" r="0.7" fill="#050605"/><circle cx="148" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="148" r="1.1" fill="#050605"/><text x="148" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">12</text><text x="104.2" y="149.2" font-size="3.4" fill="#050605">12</text><circle cx="156" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="156" r="0.7" fill="#050605"/><circle cx="164" cy="100" r="1.1" fill="#050605"/><circle cx="100" cy="164" r="1.1" fill="#050605"/><text x="164" y="104.2" font-size="3.4" text-anchor="middle" fill="#050605">16</text><text x="104.2" y="165.2" font-size="3.4" fill="#050605">16</text><circle cx="172" cy="100" r="0.7" fill="#050605"/><circle cx="100" cy="172" r="0.7" fill="#050605"/></svg></div>
 <div id="dotov"><span></span></div>
 <div id="fmap"><div class="fm-box"><canvas id="fmc"></canvas><div class="fm-foot"><span id="fmLegend"></span><button class="mb" id="fmClose">Close map</button></div></div></div>
-<div id="inv"><div class="inv-box"><div class="inv-t">INVENTORY</div><div id="invBody"></div><div class="fm-foot"><span>I or Esc closes</span><button class="mb" id="invClose">Close</button></div></div></div>
+<div id="inv"><div class="inv-box"><div class="inv-t">INVENTORY <button class="mb" id="invX" style="float:right;min-height:30px;width:auto;padding:2px 10px;font-size:12px">&#x2715;</button></div><div id="invBody"></div><div class="fm-foot"><span>I or Esc closes</span><button class="mb" id="invClose">Close</button></div></div></div>
 <div id="matchend"><div class="me-box"><div class="me-t" id="meTitle"></div><div id="meWin"></div><div class="me-y" id="meYou"></div>
  <div class="row2"><button class="mb go" id="meAgain">Play again</button><button class="mb" id="meMenu">Main menu</button></div><div class="note" id="meNote"></div></div></div>
 <div id="dnScr"><div class="dn-box">
@@ -364,7 +364,7 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
 <div id="bleedV"></div>
 <button id="admBtn" class="mb" style="display:none">ADMIN</button>
 <div id="tbtns"><button class="mb" id="tbInv">INV</button><button class="mb" id="tbChat">CHAT</button></div>
-<div id="chatBox"><input id="chatIn" maxlength="160" autocomplete="off" placeholder="Message: Enter sends, Esc cancels"></div>
+<div id="chatBox"><input id="chatIn" maxlength="160" autocomplete="off" placeholder="Message: Enter sends, Esc cancels"><button class="mb" id="chatX" style="min-height:40px;width:auto;padding:4px 12px">&#x2715;</button></div>
 <div id="admPanel"><div class="adm-t">ADMIN PANEL</div><div id="admList"></div><div class="row2"><button class="mb" id="admRestart">Restart match</button><button class="mb" id="admClose">Close</button></div></div>
 <div id="menu">
  <section id="s-home">
@@ -506,6 +506,8 @@ body[data-v=gun] #menu{padding:0;background:radial-gradient(ellipse at 50% 42%,#
   <p><b>Admin guns.</b> Admins can pick any gun from the inventory. It replaces the active slot.</p>
   <p><b>New role screen.</b> Roles are grouped with icons, and the loadout has steppers for magazines, pistol magazines and first aid kits, limited by 18 pouches.</p>
   <p><b>Weight replaces stamina.</b> Your gear adds weight, which slows walking, sprinting and jumping. The role screen shows the weight and the penalties as you change the loadout. Stamina is removed, so sprinting lasts as long as you hold it.</p>
+  <p><b>AFK nudge.</b> If you give no input for 10 minutes, your character takes a short step, so AFK players are not left standing.</p>
+  <p><b>Overlays no longer block the pause button.</b> The inventory, chat and admin panel have close buttons and sit beside the top-right pause button.</p>
   <p><b>New map: a 450 m urban city.</b> The battlefield is now a city with five districts: Downtown with skyscrapers and office blocks, Residential apartment blocks and courtyards, Commercial shops and car parks, Industrial warehouses and yards, and open areas of parks, bus stops and abandoned cars.</p>
   <p><b>Enterable buildings, ramps not stairs.</b> Most buildings have a ground door and open interiors with rooms and corridors. Floors connect by ramps, and the upper floors and roofs are reachable on foot.</p>
   <p><b>Windows break.</b> Each window is a hole in the wall with a glass pane in it. A bullet breaks the pane and carries on through the opening.</p>
@@ -2218,6 +2220,17 @@ function loadKg(){const F=FACTIONS[sel.f],pid=F.prim[sel.c],sid=F.side;
 const loadPen=kg=>({walk:Math.min(40,4/3.2*Math.max(0,kg-4)),sprint:Math.min(60,6/3.2*Math.max(0,kg-4)),jump:Math.min(30,Math.max(0,kg-4))});
 let LOAD={kg:0,walk:1,sprint:1,jump:1,p:{walk:0,sprint:0,jump:0}};
 function setLoad(){const kg=loadKg(),p=loadPen(kg);LOAD={kg,walk:1-p.walk/100,sprint:1-p.sprint/100,jump:1-p.jump/100,p};return LOAD}
+
+/* ---------- AFK nudge: after 10 minutes with no input, the character takes a short step ---------- */
+let idleT=0,nudgeT=0,nudgeF=0,nudgeS=0;const AFK_NUDGE_S=600;
+const idleReset=()=>{idleT=0};
+for(const ev of['keydown','mousedown','mousemove','pointerdown','touchstart','wheel'])window.addEventListener(ev,idleReset,{capture:true,passive:true});
+function idleUpdate(dt){
+ if(state!=='play'){idleT=0;nudgeT=0;nudgeF=nudgeS=0;return}
+ if(nudgeT>0){nudgeT-=dt;if(nudgeT<=0){nudgeT=0;nudgeF=nudgeS=0}return}
+ idleT+=dt;
+ if(idleT>=AFK_NUDGE_S){idleT=0;const a=Math.random()*Math.PI*2;nudgeF=Math.cos(a);nudgeS=Math.sin(a);nudgeT=0.8}
+}
 /* ---------- multiplayer client: server browser, relay of position, shots and hits, remote players, admin panel ---------- */
 const NET={mode:'sp',on:false,ws:null,url:'',room:'',roomName:'',id:null,admin:false,players:new Map(),avatars:new Map(),cq:null,sendT:0,cqT:0,
  match:{captures:0},target:null,lastNotice:0};
@@ -2589,7 +2602,7 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
 /* ---------- per-frame update ---------- */
 function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  
- let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y,st=(down('right')?1:0)-(down('left')?1:0)+joy.x;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
+ let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y+nudgeF,st=(down('right')?1:0)-(down('left')?1:0)+joy.x+nudgeS;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
  const fireHeld=down('fire');
  P.sprint=(down('sprint')||sprintLatch)&&f>.3&&!fireHeld&&P.stance==='stand'&&!P.climb;
  if(P.sprint)W.ads=false;
@@ -2612,7 +2625,7 @@ function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  gunPose(kb);
  if(W.noticeT>0)W.noticeT-=dt;
  updateWorld(dt)}
-function updateWorld(dt){ updateChars(dt); updateBullets(dt); updateResupply(dt); /* world-side simulation: reusable by future AI / PvE systems */
+function updateWorld(dt){ updateChars(dt); updateBullets(dt); idleUpdate(dt);updateResupply(dt); /* world-side simulation: reusable by future AI / PvE systems */
  for(const t of targets){if(t.fl>0){t.fl-=dt;t.mat.color.setRGB(1,1-t.fl*3,1-t.fl*3)}else if(t.mat.color.g<1)t.mat.color.setHex(0xffffff);
   if(t.state===1){t.ang+=dt*7;if(t.ang>=Math.PI/2){t.ang=Math.PI/2;t.state=2;t.t=0}}else if(t.state===2){t.t+=dt;if(t.t>3.5)t.state=3}else if(t.state===3){t.ang-=dt*3;if(t.ang<=0){t.ang=0;t.state=0}}
   t.hinge.rotation.x=-t.ang}
@@ -2751,7 +2764,7 @@ for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');
 $('accLogin').onclick=()=>accSubmit(false);$('accReg').onclick=()=>accSubmit(true);$('accOut').onclick=()=>accLogout(false);
 $('pveBtn').onclick=()=>{NET.mode='sp';view('faction','mode')};$('pvpBtn').onclick=()=>pvpStart();
-$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
+$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('invX').onclick=toggleInv;$('chatX').onclick=closeChat;$('admClose').onclick=()=>netAdminToggle();$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
 $('admRestart').onclick=()=>netSend({type:'admin',action:'restart'});$('meAgain').onclick=()=>{cqHide();MATCH_ON=true;deploy(false);enterPlay()};$('meMenu').onclick=()=>{cqHide();toFaction()};
 $('bDeploy').onclick=()=>{if(!classAvailable(sel.c))return;
  if(NET.mode==='mp'){if(NET.on){deploy(true);enterPlay();return}auInit();auOn();netConnect();return}

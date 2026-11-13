@@ -247,3 +247,14 @@ function loadKg(){const F=FACTIONS[sel.f],pid=F.prim[sel.c],sid=F.side;
 const loadPen=kg=>({walk:Math.min(40,4/3.2*Math.max(0,kg-4)),sprint:Math.min(60,6/3.2*Math.max(0,kg-4)),jump:Math.min(30,Math.max(0,kg-4))});
 let LOAD={kg:0,walk:1,sprint:1,jump:1,p:{walk:0,sprint:0,jump:0}};
 function setLoad(){const kg=loadKg(),p=loadPen(kg);LOAD={kg,walk:1-p.walk/100,sprint:1-p.sprint/100,jump:1-p.jump/100,p};return LOAD}
+
+/* ---------- AFK nudge: after 10 minutes with no input, the character takes a short step ---------- */
+let idleT=0,nudgeT=0,nudgeF=0,nudgeS=0;const AFK_NUDGE_S=600;
+const idleReset=()=>{idleT=0};
+for(const ev of['keydown','mousedown','mousemove','pointerdown','touchstart','wheel'])window.addEventListener(ev,idleReset,{capture:true,passive:true});
+function idleUpdate(dt){
+ if(state!=='play'){idleT=0;nudgeT=0;nudgeF=nudgeS=0;return}
+ if(nudgeT>0){nudgeT-=dt;if(nudgeT<=0){nudgeT=0;nudgeF=nudgeS=0}return}
+ idleT+=dt;
+ if(idleT>=AFK_NUDGE_S){idleT=0;const a=Math.random()*Math.PI*2;nudgeF=Math.cos(a);nudgeS=Math.sin(a);nudgeT=0.8}
+}

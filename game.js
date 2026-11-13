@@ -197,7 +197,7 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
 /* ---------- per-frame update ---------- */
 function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  
- let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y,st=(down('right')?1:0)-(down('left')?1:0)+joy.x;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
+ let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y+nudgeF,st=(down('right')?1:0)-(down('left')?1:0)+joy.x+nudgeS;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
  const fireHeld=down('fire');
  P.sprint=(down('sprint')||sprintLatch)&&f>.3&&!fireHeld&&P.stance==='stand'&&!P.climb;
  if(P.sprint)W.ads=false;
@@ -220,7 +220,7 @@ function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  gunPose(kb);
  if(W.noticeT>0)W.noticeT-=dt;
  updateWorld(dt)}
-function updateWorld(dt){ updateChars(dt); updateBullets(dt); updateResupply(dt); /* world-side simulation: reusable by future AI / PvE systems */
+function updateWorld(dt){ updateChars(dt); updateBullets(dt); idleUpdate(dt);updateResupply(dt); /* world-side simulation: reusable by future AI / PvE systems */
  for(const t of targets){if(t.fl>0){t.fl-=dt;t.mat.color.setRGB(1,1-t.fl*3,1-t.fl*3)}else if(t.mat.color.g<1)t.mat.color.setHex(0xffffff);
   if(t.state===1){t.ang+=dt*7;if(t.ang>=Math.PI/2){t.ang=Math.PI/2;t.state=2;t.t=0}}else if(t.state===2){t.t+=dt;if(t.t>3.5)t.state=3}else if(t.state===3){t.ang-=dt*3;if(t.ang<=0){t.ang=0;t.state=0}}
   t.hinge.rotation.x=-t.ang}
@@ -359,7 +359,7 @@ for(const b of document.querySelectorAll('#menu [data-back]'))b.onclick=()=>view
 $('bBack').onclick=()=>NET.on?toFaction():view(ui.prev);$('fBack').onclick=()=>view('mode','');
 $('accLogin').onclick=()=>accSubmit(false);$('accReg').onclick=()=>accSubmit(true);$('accOut').onclick=()=>accLogout(false);
 $('pveBtn').onclick=()=>{NET.mode='sp';view('faction','mode')};$('pvpBtn').onclick=()=>pvpStart();
-$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
+$('srvRefresh').onclick=netList;$('fmClose').onclick=toggleFullMap;$('invClose').onclick=toggleInv;$('tbInv').onclick=()=>act('inv');$('tbChat').onclick=()=>act('chat');$('invX').onclick=toggleInv;$('chatX').onclick=closeChat;$('admClose').onclick=()=>netAdminToggle();$('chatIn').addEventListener('keydown',chatKey);$('admBtn').onclick=netAdminToggle;$('admClose').onclick=netAdminToggle;
 $('admRestart').onclick=()=>netSend({type:'admin',action:'restart'});$('meAgain').onclick=()=>{cqHide();MATCH_ON=true;deploy(false);enterPlay()};$('meMenu').onclick=()=>{cqHide();toFaction()};
 $('bDeploy').onclick=()=>{if(!classAvailable(sel.c))return;
  if(NET.mode==='mp'){if(NET.on){deploy(true);enterPlay();return}auInit();auOn();netConnect();return}
