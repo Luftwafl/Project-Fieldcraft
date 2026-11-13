@@ -222,7 +222,7 @@ function renderClassList(){const L=document.getElementById('rlist');if(!L)return
   b.innerHTML='<span class="ic">'+CLS_ICON[id]+'</span><span class="nm">'+CLASSES[id].name+'</span><span class="st"></span>';L.appendChild(b)}}
 function eqStep(k,d){const[lo,hi]=EQ_RANGE[k],cur=sel[k],n=Math.max(lo,Math.min(hi,cur+d));
  if(n>cur&&pouchUse()+(n-cur)>POUCH_MAX)return;sel[k]=n;kitShow();renderEquip()}
-function renderEquip(){const el=document.getElementById('eqRows');if(!el)return;
+function renderEquip(){const el=document.getElementById('eqRows');if(!el)return;const L=setLoad();
  for(const b of document.querySelectorAll('.tab')){const s=b.querySelector('.st');if(s)s.textContent=b.dataset.c===sel.c?'SELECTED':''}
  const F=FACTIONS[sel.f],P1=WD[F.prim[sel.c]],S1=WD[F.side],used=pouchUse();
  const rows=[['mags','MAGAZINES',P1.mag+' rounds each',sel.mags],['pmags','PISTOL MAGAZINES',S1.mag+' rounds each',sel.pmags],['kits','FIRST AID KITS','1 use each',sel.kits]];
@@ -231,6 +231,19 @@ function renderEquip(){const el=document.getElementById('eqRows');if(!el)return;
    '<button class="mb" data-k="'+k+'" data-d="-1"'+(v<=lo?' disabled':'')+'>&minus;</button><span class="val">'+v+'</span>'+
    '<button class="mb" data-k="'+k+'" data-d="1"'+(v>=hi||used>=POUCH_MAX?' disabled':'')+'>+</button></div>'}).join('')+
   '<div class="pouch-h"><span>POUCHES</span><span>'+used+' / '+POUCH_MAX+'</span></div><div class="pouch-bar">'+
-  Array.from({length:POUCH_MAX},(_,i)=>'<i class="'+(i<used?'on':'')+'"></i>').join('')+'</div>'}
+  Array.from({length:POUCH_MAX},(_,i)=>'<i class="'+(i<used?'on':'')+'"></i>').join('')+'</div>'+
+  '<div class="pouch-h"><span>WEIGHT</span><span>'+L.kg.toFixed(1)+' KG</span></div>'+
+  '<div class="pouch-h"><span>WALK -'+L.p.walk.toFixed(0)+'%</span><span>SPRINT -'+L.p.sprint.toFixed(0)+'%  JUMP -'+L.p.jump.toFixed(0)+'%</span></div>'}
 function eqInit(){const el=document.getElementById('eqRows');if(!el)return;
  el.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b&&!b.disabled)eqStep(b.dataset.k,+b.dataset.d)})}
+
+/* ---------- weight: what you carry slows walking, sprinting and jumping (stamina is gone) ---------- */
+const GUN_KG={m16a2:3.3,m60e3:10.5,m9:0.95,ak74:3.4,rpk74:4.7,makarov:0.73};
+const KIT_KG=0.25, BASE_KG={rifleman:2.2,assault:2.0,support:2.8}; /* webbing, helmet, canteen; support adds the radio */
+const magKg=d=>0.1+0.009*d.mag; /* 30 rounds about 0.37 kg, 15 rounds about 0.235 kg */
+function loadKg(){const F=FACTIONS[sel.f],pid=F.prim[sel.c],sid=F.side;
+ return (GUN_KG[pid]||0)+(GUN_KG[sid]||0)+sel.mags*magKg(WD[pid])+sel.pmags*magKg(WD[sid])+sel.kits*KIT_KG+(BASE_KG[sel.c]||2)}
+/* penalties start above 4 kg: walking 1.2 % per kg, sprinting 1.8 % per kg, jumping 1 % per kg */
+const loadPen=kg=>({walk:Math.min(40,1.2*Math.max(0,kg-4)),sprint:Math.min(60,1.8*Math.max(0,kg-4)),jump:Math.min(30,Math.max(0,kg-4))});
+let LOAD={kg:0,walk:1,sprint:1,jump:1,p:{walk:0,sprint:0,jump:0}};
+function setLoad(){const kg=loadKg(),p=loadPen(kg);LOAD={kg,walk:1-p.walk/100,sprint:1-p.sprint/100,jump:1-p.jump/100,p};return LOAD}
