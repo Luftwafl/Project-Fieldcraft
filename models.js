@@ -137,9 +137,14 @@ function buildLit(L){
   o[0]=-.03*tilt;o[1]=.09*tilt;o[2]=.07*tilt;o[3]=.38*tilt;o[4]=-.5*tilt};
  const flipC=(L.flip||[]).filter(c=>c.path==='rotation').map(c=>({o:nodes[c.node],path:c.path,t:c.times.slice(),v:c.values.slice()}));
  let flipT=0;const FLIP_DUR=L.flipDur||0;
+ /* the left hand reaches for the bipod while it swings: its target is the bipod's rest position in the hand's frame */
+ const bipN=byName('Bipod');let bipT=null,bipHand=false;
+ const _bw=new T.Vector3();
  /* bipod flip: the body follows the clip forwards while prone and back when standing; the bipod runs the other way, so it is out when prone and put away when standing */
  m.anim=dt=>{m.cyc+=dt;const tm=Math.min(m.cyc,1);for(const c of chans)sample(c,tm);
-  if(flipC.length){const goal=P.stance==='prone'?FLIP_DUR:0;flipT+=Math.sign(goal-flipT)*Math.min(Math.abs(goal-flipT),dt);for(const c of flipC)sample(c,c.o.name==='Bipod'?FLIP_DUR-flipT:flipT)}};
+  if(flipC.length){const goal=P.stance==='prone'?FLIP_DUR:0;flipT+=Math.sign(goal-flipT)*Math.min(Math.abs(goal-flipT),dt);for(const c of flipC)sample(c,c.o.name==='Bipod'?FLIP_DUR-flipT:flipT);
+   if(bipN&&m.lh){const hw=ss(c01((flipT-.4)/.35))*(1-ss(c01((flipT-1.5)/.4)));
+    if(hw>0){root.updateMatrixWorld(true);bipN.getWorldPosition(_bw);m.lh.parent.worldToLocal(_bw);m.lh.position.set(_bw.x*hw,_bw.y*hw,_bw.z*hw);bipHand=true}else if(bipHand){m.lh.position.set(0,0,0);bipHand=false}}}};
  return m}
 function buildAK74M(){return buildLit(AK74M)}
 
