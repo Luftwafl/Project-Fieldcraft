@@ -137,9 +137,9 @@ function buildLit(L){
   o[0]=-.03*tilt;o[1]=.09*tilt;o[2]=.07*tilt;o[3]=.38*tilt;o[4]=-.5*tilt};
  const flipC=(L.flip||[]).filter(c=>c.path==='rotation').map(c=>({o:nodes[c.node],path:c.path,t:c.times.slice(),v:c.values.slice()}));
  let flipT=0;const FLIP_DUR=L.flipDur||0;
- /* bipod flip: the clip runs forwards while prone and back when standing, in step with the stance */
+ /* bipod flip: the body follows the clip forwards while prone and back when standing; the bipod runs the other way, so it is out when prone and put away when standing */
  m.anim=dt=>{m.cyc+=dt;const tm=Math.min(m.cyc,1);for(const c of chans)sample(c,tm);
-  if(flipC.length){const goal=P.stance==='prone'?FLIP_DUR:0;flipT+=Math.sign(goal-flipT)*Math.min(Math.abs(goal-flipT),dt);for(const c of flipC)sample(c,flipT)}};
+  if(flipC.length){const goal=P.stance==='prone'?FLIP_DUR:0;flipT+=Math.sign(goal-flipT)*Math.min(Math.abs(goal-flipT),dt);for(const c of flipC)sample(c,c.o.name==='Bipod'?FLIP_DUR-flipT:flipT)}};
  return m}
 function buildAK74M(){return buildLit(AK74M)}
 
