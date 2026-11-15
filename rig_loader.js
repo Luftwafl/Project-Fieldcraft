@@ -70,7 +70,7 @@ function fpRigFrame(){if(!FP||!W.slots||!W.slots.length)return;
  const R=FP.R,off=R.root.position;
  camera.updateMatrixWorld();m.root.updateMatrixWorld(true);
  const rh=m.arms.userData.rh,lo=m.arms.userData.lh;
- const grip=camera.worldToLocal(m.root.localToWorld(_fpG.set(rh[0],rh[1],rh[2]))).sub(off);
+ const rp=m.rh?m.rh.position:{x:0,y:0,z:0};const grip=camera.worldToLocal(m.root.localToWorld(_fpG.set(rh[0]+rp.x,rh[1]+rp.y,rh[2]+rp.z))).sub(off);
  const sup=camera.worldToLocal(m.lh.localToWorld(_fpL.set(lo[0],lo[1],lo[2]))).sub(off);
  rigLimb(R,1,grip,new T.Vector3(.6,-.5,.5));  /* right hand (screen right) on the grip */
  rigLimb(R,0,sup,new T.Vector3(-.6,-.5,.5));  /* left hand (screen left) on the handguard */

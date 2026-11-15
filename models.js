@@ -17,8 +17,8 @@ const WD={
  m16a2:{dk:1.35,name:'M16A2',cal:'5.56x45mm',kind:'rifle',mag:30,rpm:800,modes:['SEMI','AUTO'],dm:0,reload:2.6,draw:.5,hol:.3,kick:.0085,side:.0024,rec:6.5,hip:.016,ads:.0012,mov:.014,adsFov:60,er:.26,hipPos:[.17,-.2,-.38],snd:{f:4300,g:.85,len:.16,th:115},fl:1,vel:930,mass:.0040,build:()=>buildM16(false)},
  m60e3:{dk:1.2,name:'M60E3',cal:'7.62x51mm',kind:'rifle',mag:100,rpm:550,modes:['AUTO'],dm:0,reload:6.0,draw:.7,hol:.45,kick:.016,side:.005,rec:4.5,hip:.024,ads:.0024,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2400,g:1.05,len:.22,th:70},fl:1.5,vel:850,mass:.0095,reserveMags:3,build:buildM60},
  m9:{dk:1,name:'Beretta M9',cal:'9x19mm',kind:'pistol',mag:15,rpm:400,modes:['SEMI'],dm:0,reload:2.0,draw:.35,hol:.22,kick:.02,side:.005,rec:9,hip:.013,ads:.0018,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3000,g:.9,len:.12,th:140},fl:.8,vel:380,mass:.0075,build:build1911},
- ak74:{dk:1.35,name:'AK-74',cal:'5.45x39mm',kind:'rifle',mag:30,rpm:650,modes:['SEMI','AUTO'],dm:0,reload:2.8,draw:.5,hol:.3,kick:.0125,side:.0038,rec:5.8,hip:.019,ads:.0015,mov:.016,adsFov:60,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1,len:.18,th:90},fl:1.2,vel:900,mass:.0034,build:buildAK74M},
- rpk74:{dk:1.35,name:'RPK-74',cal:'5.45x39mm',kind:'rifle',mag:45,rpm:600,modes:['AUTO'],dm:0,reload:3.0,draw:.6,hol:.4,kick:.0125,side:.0045,rec:5,hip:.022,ads:.0017,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1.02,len:.19,th:88},fl:1.3,vel:900,mass:.0034,build:buildRPK},
+ ak74:{dk:1.35,name:'AK-74',cal:'5.45x39mm',kind:'rifle',mag:30,rpm:650,modes:['SEMI','AUTO'],dm:0,reload:2.8,rfr:[.12,.36,.26,.26],draw:.5,hol:.3,kick:.0125,side:.0038,rec:5.8,hip:.019,ads:.0015,mov:.016,adsFov:60,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1,len:.18,th:90},fl:1.2,vel:900,mass:.0034,build:buildAK74M},
+ rpk74:{dk:1.35,name:'RPK-74',cal:'5.45x39mm',kind:'rifle',mag:45,rpm:600,modes:['AUTO'],dm:0,reload:3.0,rfr:[.12,.36,.26,.26],draw:.6,hol:.4,kick:.0125,side:.0045,rec:5,hip:.022,ads:.0017,mov:.02,adsFov:58,er:.3,hipPos:[.17,-.2,-.38],snd:{f:2900,g:1.02,len:.19,th:88},fl:1.3,vel:900,mass:.0034,build:buildRPK},
  makarov:{dk:1,name:'Makarov PM',cal:'9x18mm',kind:'pistol',mag:8,rpm:380,modes:['SEMI'],dm:0,reload:1.9,draw:.32,hol:.2,kick:.019,side:.0048,rec:9.5,hip:.015,ads:.002,mov:.012,adsFov:64,er:.4,hipPos:[.1,-.14,-.34],snd:{f:3500,g:.78,len:.1,th:150},fl:.7,vel:315,mass:.0063,build:buildMak}};
 const MODE_LABEL={SEMI:'SEMI-AUTO',AUTO:'FULL AUTO'};
 
@@ -32,8 +32,8 @@ function limb(g,a,b,w,mat){const A=new T.Vector3(...a),B=new T.Vector3(...b),d=B
 function sightSet(g,sy,zr,zf,gap,fh){const k=GM.blk,e=gap/2+.0025;
  pm(g,bg(.005,.026,.01),k,-e,sy+.003,zr);pm(g,bg(.005,.026,.01),k,e,sy+.003,zr);pm(g,bg(gap+.01,.006,.01),k,0,sy-.011,zr);pm(g,bg(.005,fh,.005),k,0,sy-fh/2,zf)}
 function hands(root,o){const A=new T.Group();root.add(A);A.userData={rh:o.rh,lh:o.lh};
- pm(A,bg(.056,.062,.09),GM.skin,...o.rh);limb(A,o.rh,o.rE,.085,GM.slv);
- const lh=new T.Group();A.add(lh);pm(lh,bg(.058,.05,.1),GM.skin,...o.lh);limb(lh,o.lh,o.lE,.085,GM.slv);return{arms:A,lh}}
+ const rhG=new T.Group();A.add(rhG);pm(rhG,bg(.056,.062,.09),GM.skin,...o.rh);limb(rhG,o.rh,o.rE,.085,GM.slv);
+ const lh=new T.Group();A.add(lh);pm(lh,bg(.058,.05,.1),GM.skin,...o.lh);limb(lh,o.lh,o.lE,.085,GM.slv);return{arms:A,lh,rh:rhG}}
 function magGroup(b,x,y,z,parts){const g=new T.Group();g.position.set(x,y,z);b.add(g);for(const p of parts)pm(g,...p);return g}
 function finish(root,b,arms,lh,mag,o){return{root,body:b,arms,lh,mag,magHome:mag.position.clone(),lhTo:o.lhTo,sight:o.sight,front:o.front,muz:o.muz,slide:o.slide||null}}
 
@@ -107,7 +107,10 @@ function buildLit(L){
  const rE=[rh[0]+.07,rh[1]-.18,rh[2]+.45],lE=[lh[0]-.3,lh[1]-.245,lh[2]+.77];
  const h=hands(root,{rh,rE,lh,lE});
  const mag=byName('magazine');
+ /* the charging handle: the right hand's offset from the grip to the bolt carrier (right side, a little forward of its centre) */
+ const bcen=cen(box(byName('Boltcarrier'))),HND=[bcen.x+.035-rh[0],bcen.y-rh[1],bcen.z-rh[2]];
  const m=finish(root,b,h.arms,h.lh,mag,{lhTo:[mg.x-fe.x,mg.y-fe.y,mg.z-fe.z],sight:[0,r2.max.y,cen(r2).z],front:[0,f2.max.y,cen(f2).z],muz:[0,f2.max.y,a2.min.z]});
+ m.rh=h.rh;
  /* the bolt carrier and the trigger follow the file's own keyframes, played from each shot */
  const trig=byName('Trigger');
  const keep=[L.n.findIndex(x=>x.n==='Boltcarrier'),L.n.findIndex(x=>x.n==='Trigger')];
@@ -121,18 +124,30 @@ function buildLit(L){
   if(c.path==='translation'){v3.fromArray(c.v,i*3);v4.fromArray(c.v,j*3);c.o.position.copy(v3.lerp(v4,f))}
   else{q.fromArray(c.v,i*4);q2.fromArray(c.v,j*4);c.o.quaternion.copy(q.slerp(q2,f))}}
  m.cyc=1e9;m.onShot=()=>{m.cyc=0};
- /* reload: grab (gun tilts in, left hand to the magazine), magazine out (tilts, drops ~12.5 cm, falls away),
-    magazine in (rises from below, tilts back, hand lets go), finish (gun levels and the bolt carrier racks back and forward) */
+ /* reload, four stages (see RFR in game.js): grab the magazine; take it out, carry it to the vest, fetch a fresh one from the vest and bring it down;
+    insert it into the well; rack the bolt with the right hand (reach, pull back, let go, return to the grip) while the gun levels */
  const boltN=byName('Boltcarrier'),boltRest=boltN.position.z,magRest=mag.position.clone(),DROP=.125,SC=b.scale.x;
  const ss=x=>x*x*(3-2*x),c01=x=>Math.min(1,Math.max(0,x));
- m.resetPose=()=>{boltN.position.z=boltRest;mag.rotation.set(0,0,0);mag.position.copy(magRest)};
- m.reloadPose=(r,p,o)=>{let tilt=1,lhk=1,dropM=0,rx=0,vis=true,back=0;
-  if(r===0){tilt=ss(p);lhk=ss(p)}
-  else if(r===1){const a=ss(c01(p/.35)),f=ss(c01((p-.35)/.65));rx=.25*a;dropM=DROP*f;lhk=a;vis=f<.85}
-  else if(r===2){const f=1-ss(p);dropM=DROP*f;rx=.25*f;vis=p>.1;lhk=1-ss(c01((p-.7)/.3))}
-  else{tilt=1-ss(p);lhk=1-ss(p);back=Math.sin(Math.PI*p)*.6}
-  mag.visible=vis;mag.rotation.x=rx;mag.position.set(magRest.x,magRest.y-dropM/SC,magRest.z);
-  m.lh.position.set(m.lhTo[0]*lhk,(m.lhTo[1]-dropM)*lhk,m.lhTo[2]*lhk);
+ m.resetPose=()=>{boltN.position.z=boltRest;mag.rotation.set(0,0,0);mag.position.copy(magRest);m.rh.position.set(0,0,0)};
+ m.reloadPose=(r,p,o)=>{let tilt=1,D=[0,0,0],Mo=[0,0,0],mv=true,mrx=0,back=0,rhD=[0,0,0];
+  const lh=m.lhTo,VEST=[lh[0]-.12,lh[1]-.3,lh[2]+.05],DROPP=[lh[0],lh[1]-DROP,lh[2]];
+  const L3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
+  if(r===0){tilt=ss(p);D=lh.map(v=>v*ss(p))}
+  else if(r===1){
+   if(p<.25){D=L3(lh,DROPP,ss(p/.25));mrx=.25*ss(p/.25)}          /* the magazine comes out and drops */
+   else if(p<.55){D=L3(DROPP,VEST,ss((p-.25)/.3));mrx=.25}        /* carried to the vest */
+   else if(p<.68){D=VEST;mv=false}                                  /* pushed into the vest */
+   else if(p<.8){D=VEST}                                            /* a fresh magazine is taken from the vest */
+   else{D=L3(VEST,DROPP,ss((p-.8)/.2))}                             /* brought down, ready to insert */
+   Mo=[D[0]-lh[0],D[1]-lh[1],D[2]-lh[2]]}
+  else if(r===2){const f=1-ss(p),lk=1-ss(c01((p-.7)/.3));D=[lh[0]*lk,(lh[1]-DROP*f)*lk,lh[2]*lk];
+   Mo=[0,-DROP*f,0];mrx=.25*f;mv=p>.1}
+  else{tilt=1-ss(p);D=lh.map(v=>v*(1-ss(p)));
+   const reach=ss(c01(p/.3)),pull=ss(c01((p-.3)/.2)),rel=ss(c01((p-.5)/.2)),ret=ss(c01((p-.7)/.3));
+   back=.6*(pull-rel);const k=reach*(1-ret);
+   rhD=[HND[0]*k,HND[1]*k,HND[2]*k+back*SC]}
+  m.lh.position.set(D[0],D[1],D[2]);m.rh.position.set(rhD[0],rhD[1],rhD[2]);
+  mag.visible=mv;mag.rotation.x=mrx;mag.position.set(magRest.x+Mo[0]/SC,magRest.y+Mo[1]/SC,magRest.z+Mo[2]/SC);
   boltN.position.z=boltRest+back;
   o[0]=-.03*tilt;o[1]=.09*tilt;o[2]=.07*tilt;o[3]=.38*tilt;o[4]=-.5*tilt};
  const flipC=(L.flip||[]).filter(c=>c.path==='rotation').map(c=>({o:nodes[c.node],path:c.path,t:c.times.slice(),v:c.values.slice()}));

@@ -60,12 +60,12 @@ function startReload(){const s=curS();if(W.act!=='ready')return;
  if(s.mag>=s.def.mag)return;if(s.res<=0){setNotice('NO RESERVE AMMUNITION');return}
  W.ads=false;W.act='reload';W.rs=0;W.t=0;W.removed=W.inserted=false;W.trig=false;sfx.sel()}
 function cancelReload(){if(W.act!=='reload')return;W.act='ready';W.t=0;resetVis(WM[curS().id])}
-function reloadStep(dt){const s=curS(),d=s.def;W.t+=dt;let dur=d.reload*RFR[W.rs];
+function reloadStep(dt){const s=curS(),d=s.def;W.t+=dt;let dur=d.reload*(d.rfr||RFR)[W.rs];
  while(W.t>=dur){W.t-=dur;const r=W.rs;
   if(r===1&&!W.removed){W.removed=true;s.res+=s.mag;s.mag=0;sfx.mag(true)}              /* old magazine out: its rounds return to the pool, exactly once */
   else if(r===2&&!W.inserted){W.inserted=true;const n=Math.min(d.mag,s.res);s.mag=n;s.res-=n;sfx.mag(false)} /* new magazine in: exactly once */
   if(r===3){W.act='ready';W.t=0;resetVis(WM[s.id]);return}
-  W.rs++;dur=d.reload*RFR[W.rs]}}
+  W.rs++;dur=d.reload*(d.rfr||RFR)[W.rs]}}
 function selectSlot(i){if(i<0||i>=W.slots.length)return;if(W.act==='holster'||W.act==='draw'){W.queue=i;return}if(i===W.cur)return;
  if(W.act==='reload')cancelReload();W.ads=false;W.trig=false;W.pend=i;W.act='holster';W.t=0;sfx.sel()}
 function cycle(){selectSlot((W.cur+1)%W.slots.length)}
@@ -178,7 +178,7 @@ function collide(){const r0=.4;
 
 /* ---------- viewmodel animation ---------- */
 const _o5=[0,0,0,0,0];
-function reloadAnim(m,d,o){const r=W.rs,p=clamp(W.t/(d.reload*RFR[r]),0,1),e=sm(p);let tilt=1,mg=0,lhk=1,vis=true;
+function reloadAnim(m,d,o){const r=W.rs,p=clamp(W.t/(d.reload*(d.rfr||RFR)[r]),0,1),e=sm(p);let tilt=1,mg=0,lhk=1,vis=true;
  if(r===0){tilt=e;lhk=e}else if(r===1){mg=e;vis=p<.92}else if(r===2){mg=1-e;vis=p>.12}else{tilt=1-e;lhk=1-e}
  const drop=(r===1||r===2)?-.2*mg:0;
  m.mag.visible=vis;m.mag.position.set(m.magHome.x,m.magHome.y+drop,m.magHome.z);
@@ -190,7 +190,7 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
  y-=.05*sprintK;ry+=.5*sprintK;rx+=.15*sprintK;ry+=sway*(1-a);rx+=(d.kind==='rifle'?.1:.05)*(1-a);ry+=(d.kind==='rifle'?.12:.07)*(1-a);
  if(W.act==='holster'){const e=sm(clamp(W.t/d.hol,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
  else if(W.act==='draw'){const e=1-sm(clamp(W.t/d.draw,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
- else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*RFR[W.rs]),0,1),_o5);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
+ else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*(d.rfr||RFR)[W.rs]),0,1),_o5);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
  if(m.slide)m.slide.position.z=(s.mag===0&&W.act==='ready')?.032:kick*.02;
  gunRig.position.set(x,y,z);gunRig.rotation.set(rx,ry,rz)}
 
