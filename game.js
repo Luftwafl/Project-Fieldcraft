@@ -190,7 +190,7 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
  y-=.05*sprintK;ry+=.5*sprintK;rx+=.15*sprintK;ry+=sway*(1-a);rx+=(d.kind==='rifle'?.1:.05)*(1-a);ry+=(d.kind==='rifle'?.12:.07)*(1-a);
  if(W.act==='holster'){const e=sm(clamp(W.t/d.hol,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
  else if(W.act==='draw'){const e=1-sm(clamp(W.t/d.draw,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
- else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*(d.rfr||RFR)[W.rs]),0,1),_o5);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
+ else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*(d.rfr||RFR)[W.rs]),0,1),_o5,d.rfr||RFR);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
  if(m.slide)m.slide.position.z=(s.mag===0&&W.act==='ready')?.032:kick*.02;
  gunRig.position.set(x,y,z);gunRig.rotation.set(rx,ry,rz)}
 
