@@ -197,7 +197,13 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
  gunRig.position.set(x,y,z);gunRig.rotation.set(rx,ry,rz)}
 
 /* ---------- per-frame update ---------- */
-function update(dt){fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
+/* the hands follow the authored arm clip for the current state: fire (after a shot), aim, sprint, walk or idle. Reloads are driven by reloadPose */
+let hT=0,fT=99,lastShots=0;
+function handsFrame(dt){const s=W.slots&&W.slots[W.cur],m=s&&WM[s.id];if(!m||!m.handsAt||W.act==='reload')return;
+ if(shots!==lastShots){lastShots=shots;fT=0}else fT+=dt;
+ hT+=dt;const clip=fT<.24?'fire':W.ads?'aim':P.sprint?'sprint':P.speed>.5?'walk':'idle';
+ m.handsAt(clip,clip==='fire'?fT:hT)}
+function update(dt){handsFrame(dt);fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  
  let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y+nudgeF,st=(down('right')?1:0)-(down('left')?1:0)+joy.x+nudgeS;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}
  const fireHeld=down('fire');
