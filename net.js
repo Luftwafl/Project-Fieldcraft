@@ -58,15 +58,22 @@ function netMsg(m){
 function netSyncAvatars(){if(!NET.on)return;const seen=new Set();
  for(const p of NET.players.values()){if(p.id===NET.id)continue;seen.add(p.id);let av=NET.avatars.get(p.id);
   if(!av||av.team!==p.team||av.cls!==p.cls){if(av)scene.remove(av.g);const g=buildSoldier(p.team,p.cls);if(g.userData.rig)g.userData.rig.pose(false,true);scene.add(g);av=NET.avatars.set(p.id,{g,team:p.team,cls:p.cls,id:p.id,x:p.x,y:p.y,z:p.z,yaw:p.yaw,alive:p.alive,name:p.name}).get(p.id)}
-  av.tx=p.x;av.ty=p.y;av.tz=p.z;av.tyaw=p.yaw;av.alive=p.alive;av.name=p.name;av.stance=p.stance;av.hp=p.hp;av.down=!!p.down}
+  av.tx=p.x;av.ty=p.y;av.tz=p.z;av.tyaw=p.yaw;av.alive=p.alive;av.name=p.name;av.stance=p.stance;av.hp=p.hp;av.down=!!p.down;av.ga=p.ga||null;if(!av.tpv&&av.g.userData.rig)av.tpv=av.g.userData.rig.tpv||null}
  for(const[id,av]of NET.avatars)if(!seen.has(id)){scene.remove(av.g);NET.avatars.delete(id)}}
 function netClearAvatars(){for(const av of NET.avatars.values())scene.remove(av.g);NET.avatars.clear();NET.players=new Map()}
-function netAvatarFrame(dt){for(const av of NET.avatars.values()){if(av.tx===undefined)continue;const k=Math.min(1,dt*12);
+/* remote guns: the other player's rifle plays the matching clip (idle, walk, sprint, aim, fire, reload or under-fire reload); the bipod follows the prone stance */
+function remoteGunFrame(av,dt){const tp=av.tpv,g=av.ga;if(!tp||!g||!tp.CL)return;const CL=tp.CL;av.bt=(av.bt||0)+dt;let name,t;
+ if(g.r>0){if(av.rl!==g.r){av.rl=g.r;av.rt=0}av.rt+=dt;name=g.r===2?'reloadU':'reload';t=Math.min(av.rt,CL[name].len)}
+ else{av.rl=0;if(g.f!==av.lf){av.lf=g.f;av.ft=0}
+  if(av.ft!==undefined&&av.ft<CL.fire.len){av.ft+=dt;name='fire';t=av.ft}
+  else{name=g.a?'aim':g.m===2?'sprint':g.m===1?'walk':'idle';t=av.bt%CL[name].len}}
+ tp.playRemote(name,t,CL.fold?(g.b?CL.fold.len:0):undefined)}
+function netAvatarFrame(dt){for(const av of NET.avatars.values()){remoteGunFrame(av,dt);if(av.tx===undefined)continue;const k=Math.min(1,dt*12);
   av.x+=(av.tx-av.x)*k;av.y+=(av.ty-av.y)*k;av.z+=(av.tz-av.z)*k;let dy=av.tyaw-av.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));av.yaw+=dy*k;
   av.g.position.set(av.x,av.y,av.z);av.g.rotation.y=av.yaw;av.g.visible=av.alive;av.g.scale.y=av.stance==='crouch'?.7:1}}
 /* per frame: send own state 10 times a second, move remote players, refresh the top bar every 0.25 s */
 function netUpdate(dt){if(!NET.on)return;NET.sendT+=dt;if(NET.sendT>=.1){NET.sendT=0;
-  netSend({type:'state',x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,stance:P.stance,alive:P.hp>0,hp:P.hp,down:!!P.down,cls:sel.c})}
+  netSend({type:'state',x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,stance:P.stance,alive:P.hp>0,hp:P.hp,down:!!P.down,cls:sel.c,ga:{m:P.sprint?2:P.speed>.5?1:0,a:W.ads?1:0,r:W.act==='reload'?(W.under?2:1):0,f:shots,b:P.stance==='prone'?1:0}})}
  netAvatarFrame(dt);NET.cqT+=dt;if(NET.cqT>=.25){NET.cqT=0;if(NET.cq)cqHud(NET.cq)}}
 /* bullets: the shooter's own shots are sent to the room; a bullet that reaches a player on the other side is reported as a hit */
 function netShot(o,d){netSend({type:'shot',o:[o.x,o.y,o.z],d:[d.x,d.y,d.z]})}

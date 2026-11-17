@@ -95,12 +95,12 @@ function rigBuild(team,cls){
   m.castShadow=false;m.receiveShadow=false;meshes.push(m)});
  const byName=nm=>objs[N.findIndex(n=>n.name===nm)];
  const wid=FACTIONS[team].prim[cls],gun=new T.Group();gun.name='rig-gun';
- const gb=WM[wid].body.clone();gun.add(gb);root.add(gun);
+ const TP=TPV_BUILD[wid],tpv=TP?TP():null;const gb=tpv?tpv.body:WM[wid].body.clone();gun.add(gb);root.add(gun);
  /* anchors from the rifle's real bounds (its body is normalised in scale): butt, grip and handguard */
  const bb=new T.Box3().setFromObject(gb),cx=(bb.min.x+bb.max.x)/2,cy=(bb.min.y+bb.max.y)/2;
  const anchor={stock:new T.Vector3(cx,cy,bb.max.z),grip:new T.Vector3(cx,bb.min.y+.05,bb.max.z-.32),fg:new T.Vector3(cx,bb.min.y+.175,bb.min.z+.39)}; /* pistol grip and forend, measured on the M16 body */
  gb.traverse(m=>{if(m.isMesh){m.castShadow=false;m.receiveShadow=false;m.userData.part='body';meshes.push(m)}});
  const R={root,meshes,gun,anchor,arms:[byName('RightArm'),byName('LeftArm')],fore:[byName('RightForeArm'),byName('LeftForeArm')],
   hand:[byName('RightHand'),byName('LeftHand')],head:[byName('Head'),byName('Helmet')],legs:[byName('RightLeg'),byName('LeftLeg')]};
- R.pose=(aim,low)=>rigPose(R,aim,low);
+ R.pose=(aim,low)=>rigPose(R,aim,low);R.tpv=tpv;
  return R}

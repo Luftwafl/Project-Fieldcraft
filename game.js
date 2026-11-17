@@ -56,9 +56,11 @@ function updateResupply(dt){let near=null;for(const r of RESUPPLY)if(Math.hypot(
  if(refilled){setNotice('RESUPPLIED - '+near.name,2.2);sfx.ui()}else setNotice('AMMUNITION ALREADY FULL',1.6)}
 
 /* ---------- weapon state machine: ready | holster | draw | reload ---------- */
+/* stressed: hurt in the last six seconds, down, or low on blood: the reload is played under fire */
+function stressed(){return P.down||P.hp<45||(performance.now()/1000-(P.hurtAt||-99))<6}
 function startReload(){const s=curS();if(W.act!=='ready')return;
  if(s.mag>=s.def.mag)return;if(s.res<=0){setNotice('NO RESERVE AMMUNITION');return}
- W.ads=false;W.act='reload';W.rs=0;W.t=0;W.removed=W.inserted=false;W.trig=false;sfx.sel()}
+ W.ads=false;W.act='reload';W.under=stressed();W.rs=0;W.t=0;W.removed=W.inserted=false;W.trig=false;sfx.sel()}
 function cancelReload(){if(W.act!=='reload')return;W.act='ready';W.t=0;resetVis(WM[curS().id])}
 function reloadStep(dt){const s=curS(),d=s.def;W.t+=dt;let dur=d.reload*(d.rfr||RFR)[W.rs];
  while(W.t>=dur){W.t-=dur;const r=W.rs;
@@ -190,7 +192,7 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
  y-=.05*sprintK;ry+=.5*sprintK;rx+=.15*sprintK;ry+=sway*(1-a);rx+=(d.kind==='rifle'?.1:.05)*(1-a);ry+=(d.kind==='rifle'?.12:.07)*(1-a);
  if(W.act==='holster'){const e=sm(clamp(W.t/d.hol,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
  else if(W.act==='draw'){const e=1-sm(clamp(W.t/d.draw,0,1));y-=.3*e;rx+=.8*e;x+=.05*e}
- else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*(d.rfr||RFR)[W.rs]),0,1),_o5,d.rfr||RFR);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
+ else if(W.act==='reload'){if(m.reloadPose)m.reloadPose(W.rs,clamp(W.t/(d.reload*(d.rfr||RFR)[W.rs]),0,1),_o5,d.rfr||RFR,W.under);else reloadAnim(m,d,_o5);x+=_o5[0];y+=_o5[1];z+=_o5[2];rx+=_o5[3];rz+=_o5[4]}
  if(m.slide)m.slide.position.z=(s.mag===0&&W.act==='ready')?.032:kick*.02;
  gunRig.position.set(x,y,z);gunRig.rotation.set(rx,ry,rz)}
 
@@ -516,7 +518,7 @@ document.getElementById('menu').addEventListener('click',e=>{if(e.target.closest
 /* Stage 3 hooks: centralised config, no duplicated state */
 const SPAWN_POINTS=[];for(const k in BASES){const b=BASES[k];SPAWN_POINTS.push({faction:k,kind:'player',...b.spawn});(b.aiSpawns||[]).forEach(p=>SPAWN_POINTS.push({faction:k,kind:'ai',...p}))}
 window.FC={STAGE,FACTIONS,CLASSES,WD,BASES,SPAWN_POINTS,player:P,weapons:W,settings:SET,get state(){return state}};
-window.__fc={NET:()=>NET,groundAt,collide,ramps:()=>RAMPS,city:()=>CITY,footprints:()=>FOOT,cqPoints:()=>CQ_POINTS,dmgTick,dmgReset,useKit,reviveNow,dmgHudText,P,DMG,prevRig:()=>prev.cur&&prev.cur.userData.rig,prevCam:()=>prev.cam,WM,T,shoot,earn,hurtPlayer,playerDied,MATCH_ON:()=>MATCH_ON,ACC:()=>ACC,hitChar,cqUpdateSP,onPlayerKill,adsFovFor,held,CH,CQS:()=>CQS,WALLET:()=>WALLET,SCOPES,buyScope,equipScope,toggleFullMap,allyMarks,netConnect,netList,netLeave,netSend,fire,findPath,segClear,aliveSoldiers,RESPAWN_DELAY,BODY_TTL,SHARE_R,INVEST_T,updateChars,spawnChars,hurtPlayer,canSee,clearPoint,damageChar,throwGrenade,SIM_FULL,SIM_RED,respawn,H,MAP_H,tHeld,leanClear,leanUpdate,get leanLim(){return P.leanLim},get boxes(){return boxes},get occluders(){return occluders},simulateShot,bullets,HOUSES,buildMinimapBase,ROADS,RESUPPLY,roadDist,updateResupply,get resLock(){return resLock},get resNear(){return resNear},get resT(){return resT},get TRC(){return TRC},H,get occluders(){return occluders},get OCC_CAT(){return OCC_CAT},BASES,SPAWN_POINTS,AU,get boxes(){return boxes},get circles(){return circles},get flags(){return flags},applyShadow,applyFog,applyRes,sfx,joy,tHeld,get sprintLatch(){return sprintLatch},T,camera,scene,get lastSp(){return dbgSp},get lastCap(){return dbgCap},selectSlot,get state(){return state},W,P,SET,WD,WM,sel,ui,FACTIONS,CLASSES,get hits(){return hits},get shots(){return shots},setLocked:v=>{locked=v},act,view,groundAt,collide,stepBullet,alList,AL,alSpot,spawnOnAlly,alRender,breakPane,down,heading,deploy,cycle,startReload,toggleADS,get kick(){return kick}};
+window.__fc={remoteGunFrame,TPV_BUILD,NET:()=>NET,groundAt,collide,ramps:()=>RAMPS,city:()=>CITY,footprints:()=>FOOT,cqPoints:()=>CQ_POINTS,dmgTick,dmgReset,useKit,reviveNow,dmgHudText,P,DMG,prevRig:()=>prev.cur&&prev.cur.userData.rig,prevCam:()=>prev.cam,WM,T,shoot,earn,hurtPlayer,playerDied,MATCH_ON:()=>MATCH_ON,ACC:()=>ACC,hitChar,cqUpdateSP,onPlayerKill,adsFovFor,held,CH,CQS:()=>CQS,WALLET:()=>WALLET,SCOPES,buyScope,equipScope,toggleFullMap,allyMarks,netConnect,netList,netLeave,netSend,fire,findPath,segClear,aliveSoldiers,RESPAWN_DELAY,BODY_TTL,SHARE_R,INVEST_T,updateChars,spawnChars,hurtPlayer,canSee,clearPoint,damageChar,throwGrenade,SIM_FULL,SIM_RED,respawn,H,MAP_H,tHeld,leanClear,leanUpdate,get leanLim(){return P.leanLim},get boxes(){return boxes},get occluders(){return occluders},simulateShot,bullets,HOUSES,buildMinimapBase,ROADS,RESUPPLY,roadDist,updateResupply,get resLock(){return resLock},get resNear(){return resNear},get resT(){return resT},get TRC(){return TRC},H,get occluders(){return occluders},get OCC_CAT(){return OCC_CAT},BASES,SPAWN_POINTS,AU,get boxes(){return boxes},get circles(){return circles},get flags(){return flags},applyShadow,applyFog,applyRes,sfx,joy,tHeld,get sprintLatch(){return sprintLatch},T,camera,scene,get lastSp(){return dbgSp},get lastCap(){return dbgCap},selectSlot,get state(){return state},W,P,SET,WD,WM,sel,ui,FACTIONS,CLASSES,get hits(){return hits},get shots(){return shots},setLocked:v=>{locked=v},act,view,groundAt,collide,stepBullet,alList,AL,alSpot,spawnOnAlly,alRender,breakPane,down,heading,deploy,cycle,startReload,toggleADS,get kick(){return kick}};
 setQ(Qn);ready=true;view('home','');setPreview('nato','rifleman');camera.position.set(0,1.68,16);
 $('load').classList.add('hide');requestAnimationFrame(frame);
 </script></body></html>

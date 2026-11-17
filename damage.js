@@ -23,6 +23,7 @@ function dmgReset(kits){P.hp=DMG.MAX_BLOOD;P.down=false;P.downT=0;P.reviver=null
 
 /* h: {wpn:'rifle'|'pistol'|'frag', part, dmg, from:{x,z}, name, wname, byId}. A plain number is a legacy rifle hit. */
 function hurtPlayer(h){
+ P.hurtAt=performance.now()/1000;
  if(P.hp<=0)return;
  CH.stats.playerHits++;
  if(typeof h==='number')h={wpn:'rifle',dmg:h};

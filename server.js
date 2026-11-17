@@ -106,7 +106,7 @@ wss.on('connection',(ws)=>{
    case 'state':{ /* own position and status; the room sees it on the next world update */
     const n=(v,d=0)=>Number.isFinite(+v)?+v:d;
     me.x=n(m.x);me.y=n(m.y);me.z=n(m.z);me.yaw=n(m.yaw);me.pitch=n(m.pitch);me.stance=['stand','crouch','prone'].includes(m.stance)?m.stance:'stand';
-    me.alive=!!m.alive;me.hp=n(m.hp,100);me.down=!!m.down;me.cls=CLASSES.includes(m.cls)?m.cls:me.cls;break}
+    me.alive=!!m.alive;me.hp=n(m.hp,100);me.down=!!m.down;me.cls=CLASSES.includes(m.cls)?m.cls:me.cls;const g=m.ga||{};me.ga={m:Math.min(2,Math.max(0,n(g.m))),a:n(g.a)?1:0,r:Math.min(2,Math.max(0,n(g.r))),f:n(g.f),b:n(g.b)?1:0};break}
    case 'shot':{ /* a shot for everyone else to see (tracer) */
     const o=Array.isArray(m.o)&&m.o.length===3?m.o.map(v=>+v||0):null,d=Array.isArray(m.d)&&m.d.length===3?m.d.map(v=>+v||0):null;
     if(o&&d)for(const p of room.players.values())if(p!==me)send(p.ws,{type:'shot',from:me.id,o,d});break}
@@ -152,7 +152,7 @@ setInterval(()=>{
      players:[...room.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,kills:p.kills,deaths:p.deaths})),captures:room.captures,restartIn:RESTART_DELAY})}}}
   if(room.ended&&now-room.ended>RESTART_DELAY*1000)restartMatch(room,'New match');
   const world={type:'world',t:now,cq:room.cq,players:[...room.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,cls:p.cls,admin:p.admin,down:!!p.down,
-   x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,stance:p.stance,alive:p.alive,hp:p.hp,kills:p.kills,deaths:p.deaths}))};
+   x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,stance:p.stance,alive:p.alive,hp:p.hp,kills:p.kills,deaths:p.deaths,ga:p.ga||null}))};
   roomSend(room,world);
  }
 },100);
