@@ -1170,6 +1170,10 @@ function buildLit(L,AR){
  m.handsAt=(clip,t)=>{const o=m.handOff(clip,t);if(!o){m.lh.position.set(0,0,0);m.rh.position.set(0,0,0);return}
   m.lh.position.set(...o.L);m.rh.position.set(...o.R)};
  m.resetPose=()=>{boltN.position.z=boltRest;mag.rotation.set(0,0,0);mag.position.copy(magRest);m.rh.position.set(0,0,0);m.lh.position.set(0,0,0);for(const c of allC){c.o.position.copy(c.p0);c.o.quaternion.copy(c.q0)}};
+ /* reload hand locks: positions at rest, taken once with the gun in its rest pose. The left hand rests on the forend and takes the magazine
+    while it is out of the well; the right hand rests on the grip and takes the bolt while it is charged */
+ const LKR=o=>{root.updateMatrixWorld(true);return root.worldToLocal(o.getWorldPosition(new T.Vector3()))};
+ const lockFwd=LKR(byName('Forend')),lockGrip=LKR(byName('pistolgrip')),lockMag=LKR(mag),lockBolt=LKR(boltN);
  m.reloadPose=(r,p,o,frac,under)=>{
   if(rlC.length){const F=frac||[.16,.30,.38,.16],sumF=F.reduce((a,b)=>a+b,0);let acc=0;for(let k=0;k<r;k++)acc+=F[k];
    const tm=(acc+F[r]*p)/sumF*rlLen,RC=(under&&rlUC.length)?rlUC:rlC;
@@ -1177,7 +1181,11 @@ function buildLit(L,AR){
    for(const c of RC)rlApply(c,tm);
    mag.visible=true;
    /* the hands follow the authored arm bones of the reload clip (standard or under fire) */
-   m.handsAt(under?'reload_under_fire':'reload_standard',tm);
+   /* weights come from the part's own movement inside the body (not the body's movement); each hand follows the part it holds */
+   const wm=ss(c01(mag.position.distanceTo(magRest)/.01)),wb=ss(c01(Math.abs(boltN.position.z-boltRest)/.01));
+   const fwdNow=LKR(byName('Forend')),gripNow=LKR(byName('pistolgrip')),magNow=LKR(mag),boltNow=LKR(boltN);
+   m.lh.position.copy(fwdNow.clone().sub(lockFwd).multiplyScalar(1-wm).add(magNow.clone().sub(lockFwd).multiplyScalar(wm)));
+   m.rh.position.copy(gripNow.clone().sub(lockGrip).multiplyScalar(1-wb).add(boltNow.clone().sub(lockGrip).multiplyScalar(wb)));
    o[0]=o[1]=o[2]=o[3]=o[4]=0;return}
  let tilt=1,D=[0,0,0],Mo=[0,0,0],mv=true,mrx=0,back=0,rhD=[0,0,0];
   const lh=m.lhTo,VEST=[lh[0]-.12,lh[1]-.3,lh[2]+.05],DROPP=[lh[0],lh[1]-DROP,lh[2]];
