@@ -1163,7 +1163,8 @@ function buildLit(L,AR){
  if(AR){armPose(null,0);armRestHands={L:armHandW(5),R:armHandW(2)}}
  /* hand offsets measured from where the clip starts, so each state begins with the hands where the gun puts them */
  const armStart={};
- m.handOff=(clip,t)=>{if(!AR)return null;if(!(clip in armStart)){armPose(clip,0);armStart[clip]={L:armHandW(5),R:armHandW(2)}}
+ m.handOff=(clip,t)=>{if(!AR)return null;if(clip==='aim')return{L:[0,0,0],R:[0,0,0]}; /* aim: the hands stay on the gun; the gun moves to the eye in code */
+  if(!(clip in armStart)){armPose(clip,0);armStart[clip]={L:armHandW(5),R:armHandW(2)}}
   armPose(clip,t);const L=armHandW(5).sub(armStart[clip].L),R=armHandW(2).sub(armStart[clip].R);
   return{L:[L.x*SC,L.y*SC,L.z*SC],R:[R.x*SC,R.y*SC,R.z*SC]}};
  m.handsAt=(clip,t)=>{const o=m.handOff(clip,t);if(!o){m.lh.position.set(0,0,0);m.rh.position.set(0,0,0);return}
