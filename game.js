@@ -198,11 +198,15 @@ function gunPose(kb){const s=curS(),d=s.def,m=WM[s.id],a=W.adsK,h=d.hipPos,ap=m.
 
 /* ---------- per-frame update ---------- */
 /* the hands follow the authored arm clip for the current state: fire (after a shot), aim, sprint, walk or idle. Reloads are driven by reloadPose */
-let hT=0,fT=99,lastShots=0;
-function handsFrame(dt){const s=W.slots&&W.slots[W.cur],m=s&&WM[s.id];if(!m||!m.handsAt||W.act==='reload')return;
+let hT=0,fT=99,lastShots=0,hClip=null,hBlend=1,hFrom={m:null};
+function handsFrame(dt){const s=W.slots&&W.slots[W.cur],m=s&&WM[s.id];if(!m||!m.handOff||W.act==='reload'){hClip=null;return}
  if(shots!==lastShots){lastShots=shots;fT=0}else fT+=dt;
  hT+=dt;const clip=fT<.24?'fire':W.ads?'aim':P.sprint?'sprint':P.speed>.5?'walk':'idle';
- m.handsAt(clip,clip==='fire'?fT:hT)}
+ const o=m.handOff(clip,clip==='fire'?fT:hT);if(!o)return;
+ /* a new state blends from the hands' current offsets over 0.15 s, so states do not snap */
+ if(clip!==hClip||m!==hFrom.m){hFrom={m,L:m.lh.position.toArray(),R:m.rh.position.toArray()};hBlend=0;hClip=clip}
+ hBlend=Math.min(1,hBlend+dt/.15);const k=hBlend*hBlend*(3-2*hBlend);
+ m.lh.position.set(...o.L.map((v,i)=>hFrom.L[i]+(v-hFrom.L[i])*k));m.rh.position.set(...o.R.map((v,i)=>hFrom.R[i]+(v-hFrom.R[i])*k))}
 function update(dt){handsFrame(dt);fpRigFrame();for(const k in WM)if(WM[k].anim)WM[k].anim(dt);
  
  let f=(down('fwd')?1:0)-(down('back')?1:0)+joy.y+nudgeF,st=(down('right')?1:0)-(down('left')?1:0)+joy.x+nudgeS;const l=Math.hypot(f,st);if(l>1){f/=l;st/=l}

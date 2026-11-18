@@ -151,9 +151,13 @@ function buildLit(L,AR){
  const armHandW=i=>armObjs[i].getWorldPosition(_hw).clone();
  let armRestHands=null;
  if(AR){armPose(null,0);armRestHands={L:armHandW(5),R:armHandW(2)}}
- m.handsAt=(clip,t)=>{if(!AR){m.lh.position.set(0,0,0);m.rh.position.set(0,0,0);return}
-  armPose(clip,t);const L=armHandW(5).sub(armRestHands.L),R=armHandW(2).sub(armRestHands.R);
-  m.lh.position.set(L.x*SC,L.y*SC,L.z*SC);m.rh.position.set(R.x*SC,R.y*SC,R.z*SC)};
+ /* hand offsets measured from where the clip starts, so each state begins with the hands where the gun puts them */
+ const armStart={};
+ m.handOff=(clip,t)=>{if(!AR)return null;if(!(clip in armStart)){armPose(clip,0);armStart[clip]={L:armHandW(5),R:armHandW(2)}}
+  armPose(clip,t);const L=armHandW(5).sub(armStart[clip].L),R=armHandW(2).sub(armStart[clip].R);
+  return{L:[L.x*SC,L.y*SC,L.z*SC],R:[R.x*SC,R.y*SC,R.z*SC]}};
+ m.handsAt=(clip,t)=>{const o=m.handOff(clip,t);if(!o){m.lh.position.set(0,0,0);m.rh.position.set(0,0,0);return}
+  m.lh.position.set(...o.L);m.rh.position.set(...o.R)};
  m.resetPose=()=>{boltN.position.z=boltRest;mag.rotation.set(0,0,0);mag.position.copy(magRest);m.rh.position.set(0,0,0);m.lh.position.set(0,0,0);for(const c of allC){c.o.position.copy(c.p0);c.o.quaternion.copy(c.q0)}};
  m.reloadPose=(r,p,o,frac,under)=>{
   if(rlC.length){const F=frac||[.16,.30,.38,.16],sumF=F.reduce((a,b)=>a+b,0);let acc=0;for(let k=0;k<r;k++)acc+=F[k];
